@@ -7,8 +7,8 @@
 # =======================================================
 
 from typing import Union
-from KRITIMUSIC import app
-from KRITIMUSIC.utils.formatters import time_to_seconds
+from ShiviMusic import app
+from ShiviMusic.utils.formatters import time_to_seconds
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 
@@ -77,11 +77,11 @@ def aq_markup(_, chat_id):
         [
             InlineKeyboardButton(
                 text="ᴊᴏɪɴ ɴᴏᴡ",
-                url=f"https://t.me/kriti_update"
+                url=f"https://t.me/kirti_bots"
             ),
             InlineKeyboardButton(
                 text="ɢʀᴏᴜᴘ ᴄʜᴧᴛ",
-                url="https://t.me/Kriti_Supprot_group"
+                url="https://t.me/kirti_bots_support"
             ),
         ],
         [
