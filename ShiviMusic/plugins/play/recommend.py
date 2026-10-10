@@ -17,6 +17,7 @@ from ShiviMusic.utils.logger import track_logs
 from ShiviMusic.utils.recommend import (
     _st,
     fetch_recommendations,
+    get_cached_track,
     get_more_recommendations,
     recommend_markup,
     recommend_text,
@@ -46,7 +47,11 @@ async def _play_vidid(CallbackQuery, vidid: str, source: str = "Recommend"):
 
     mystic = await app.send_message(chat_id, _["play_1"])
     try:
-        details, _track_id = await YouTube.track(vidid, True)
+        details = get_cached_track(vidid)  # exact wahi song jo button par dikha
+        if details is None:
+            details, _track_id = await YouTube.track(vidid, True)
+        if details.get("vidid") != vidid:
+            raise ValueError(f"vidid mismatch {details.get('vidid')} != {vidid}")
     except Exception as e:
         print(f"[RECOMMEND PLAY] track() fail: {type(e).__name__}: {e}")
         return await mystic.edit_text(_["play_3"])
