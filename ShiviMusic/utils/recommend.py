@@ -64,6 +64,33 @@ async def _search_fallback(seed_vidid: str, seed_title: str, n: int) -> list:
     return [c for c in cands if c["vidid"] != seed_vidid][:n]
 
 
+# Dikhaye gaye tracks ki exact details (vidid -> dict). Button dabane par yahi
+# use hoti hai, search nahi -> jo title dikha wahi song chalta hai.
+_TRACK_CACHE: dict = {}
+_DUR_OK = re.compile(r"^\d+(:\d{2}){1,2}$")
+
+
+def _cache(cands: list) -> list:
+    for c in cands:
+        _TRACK_CACHE[c["vidid"]] = c
+    while len(_TRACK_CACHE) > 1500:
+        _TRACK_CACHE.pop(next(iter(_TRACK_CACHE)))
+    return cands
+
+
+def get_cached_track(vidid: str):
+    c = _TRACK_CACHE.get(vidid)
+    if c and _DUR_OK.match(str(c.get("duration_min", ""))):
+        return {
+            "title": c["title"],
+            "link": c.get("link") or f"https://www.youtube.com/watch?v={vidid}",
+            "vidid": vidid,
+            "duration_min": c["duration_min"],
+            "thumb": c.get("thumb") or f"https://i.ytimg.com/vi/{vidid}/hqdefault.jpg",
+        }
+    return None
+
+
 _MIX_BAD_UNTIL = 0.0  # Mix fail/timeout ho to kuch der skip (bot-check me atakna nahi)
 
 
@@ -93,7 +120,7 @@ async def _fetch_pool(seed_vidid: str, seed_title: str, region) -> list:
         extra = await _search_fallback(seed_vidid, seed_title, 25)
         extra = [c for c in extra if c["vidid"] not in have]
         cands += filter_by_region(extra, region)
-    return cands
+    return _cache(cands)
 
 
 async def _search_many(queries: list, region) -> list:
@@ -115,7 +142,7 @@ async def _search_many(queries: list, region) -> list:
             if c and c["vidid"] not in seen:
                 seen.add(c["vidid"])
                 merged.append(c)
-    return filter_by_region(merged, region)
+    return _cache(filter_by_region(merged, region))
 
 
 # ---------------------------------------------------------
