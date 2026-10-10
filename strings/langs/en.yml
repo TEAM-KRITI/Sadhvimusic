@@ -167,7 +167,7 @@ ping_2 : "**❖ {1}**\n\n**🏓 ᴘɪηɢ..ᴩσηɢ :** {0}ϻs..\n\n**➻ sʏs�
 queue_1 : "» ғᴇᴛᴄʜɪɴɢ ǫᴜᴇᴜᴇ...\n\nᴘʟᴇᴀsᴇ ᴡᴀɪᴛ..."
 queue_2 : "» ǫᴜᴇᴜᴇ ᴇᴍᴘᴛʏ."
 queue_3 : "<u>» ᴄʟɪᴄᴋ ʜᴇʀᴇ ᴛᴏ ᴄʜᴇᴄᴋ ᴛʜᴇ ʟɪsᴛ ᴏғ ᴛʜᴇ ǫᴜᴇᴜᴇᴅ ᴛʀᴀᴄᴋs :</u> <a href={0}>ʜᴇʀᴇ</a>"
-queue_4: "<b><blockquote>❀≽ ᴧᴅᴅᴇᴅ ᴛᴏ ǫᴜᴇᴜᴇ ✭ ᴧᴛ #{0}</blockquote></b>\n<b><blockquote expandable>✯ ᴛɪᴛʟᴇ » {1}\n✬ ᴅᴜʀᴧᴛɪᴏɴ » {2} ᴍɪɴᴜᴛᴇs\n✭ ʙʏ » {3}</blockquote></b>\n<b><blockquote>✬ ᴍᴀɪɴᴛᴀɪɴᴇᴅ ʙʏ ➛ [˹ᴋɪʀᴛɪ ʙᴏᴛs˼](https://t.me/kirti_bots)</blockquote></b>"
+queue_4 : "<b><blockquote expandable>❖ ηєxᴛ sσηɢ ᴧᴅᴅ ɪη ǫᴜєᴜє.</blockquote>\n<blockquote>» ᴛɪᴛʟє :</b> {1}\n<b>» ᴘσsɪᴛɪση :</b> {0}\n<b>» ᴅᴜʀᴧᴛɪση :</b> {2} ϻɪηᴜᴛєѕ\n<b>» ʙʏ :</b> {3}</blockquote>\n<blockquote><b>🤞 𝐏ᴏᴡєʀєᴅ  𝐁ʏ ➛  [˹ᴋɪʀᴛɪ ʙᴏᴛѕ˼](https://t.me/kirti_bots)</b></blockquote>"
 queue_5 : "ᴛʜᴇʀᴇ's ᴏɴʟʏ ᴏɴᴇ ǫᴜᴇᴜᴇᴅ ᴛʀᴀᴄᴋ ɪɴ ᴘʟᴀʏʟɪsᴛ.\n\nᴀᴅᴅ ᴍᴏʀᴇ ᴛʀᴀᴄᴋs ᴛᴏ ᴄʜᴇᴄᴋ ʟɪsᴛ."
 queue_6 : "<b>🕚 ᴅᴜʀᴀᴛɪᴏɴ :</b> ᴜɴᴋɴᴏᴡɴ ᴅᴜʀᴀᴛɪᴏɴ sᴛʀᴇᴀᴍ\n\nᴄʟɪᴄᴋ ᴏɴ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ɢᴇᴛ ᴡʜᴏʟᴇ ǫᴜᴇᴜᴇᴅ ʟɪsᴛ."
 queue_7 : "\nᴄʟɪᴄᴋ ᴏɴ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ɢᴇᴛ ᴡʜᴏʟᴇ ǫᴜᴇᴜᴇᴅ ʟɪsᴛ."
