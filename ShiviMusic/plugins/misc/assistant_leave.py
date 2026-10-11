@@ -12,10 +12,10 @@ from pyrogram.errors import FloodWait
 from pyrogram.types import ChatMemberUpdated, Message
 
 import config
-from kirtimusic import app
-from kirtimusic.core.call import Shivi
-from kirtimusic.logging import LOGGER
-from kirtimusic.utils.database import (
+from ShiviMusic import app
+from ShiviMusic.core.call import Shivi
+from ShiviMusic.logging import LOGGER
+from ShiviMusic.utils.database import (
     _get_valid_assistants,
     assdb,
     assistantdict,
