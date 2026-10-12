@@ -27,6 +27,7 @@ from ShiviMusic.utils.database import (
     is_maintenance,
 )
 from ShiviMusic.utils.inline import botplaylist_markup
+from ShiviMusic.utils.anon import make_anon_admin, is_anon_admin
 from config import PLAYLIST_IMG_URL, SUPPORT_CHAT, adminlist
 from strings import get_string
 
@@ -48,7 +49,7 @@ def PlayWrapper(command):
         # SENDER CHAT CHECK
         # ==================================================
 
-        if message.sender_chat:
+        if message.sender_chat and not make_anon_admin(client, message):
             upl = InlineKeyboardMarkup(
                 [
                     [
@@ -189,6 +190,7 @@ def PlayWrapper(command):
 
             if (
                 message.from_user
+                and not is_anon_admin(message)
                 and message.from_user.id not in SUDOERS
             ):
 
