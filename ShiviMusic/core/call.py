@@ -647,6 +647,8 @@ class Call(PyTgCalls):
         await self.rejoin_after_mute(client, chat_id)
 
     async def rejoin_after_mute(self, client: PyTgCalls, chat_id: int):
+        """Mute 5 sec rahe to assistant VC se leave kare, message bheje.
+        Queue clear hoti hai, taaki dobara /play karne par song normal chale."""
         if chat_id in rejoining:
             return
         playing = db.get(chat_id)
@@ -654,47 +656,36 @@ class Call(PyTgCalls):
             return
         rejoining.add(chat_id)
         try:
-            track = playing[0]
-            file_path = track["file"]
-            if "vid_" in file_path:
-                n, file_path = await YouTube.video(track["vidid"], True)
-                if n == 0:
-                    return
-            if track.get("speed_path"):
-                file_path = track["speed_path"]
-            if "index_" in file_path:
-                file_path = track["vidid"]
-
-            played = int(track.get("played", 0))
-            duration = track.get("dur")
-            video_mode = track.get("streamtype") == "video"
-
-            # 1) VC se niche aao
+            original_chat_id = playing[0].get("chat_id", chat_id)
+            # 1) VC se niche aao + state clear
+            try:
+                await _clear_(chat_id)
+            except Exception:
+                pass
             try:
                 await client.leave_call(chat_id, close=False)
             except Exception:
                 pass
-
-            # message + Close button
+            # 2) message + Close button
             try:
                 _ = get_string(await get_lang(chat_id))
                 await app.send_message(
-                    track.get("chat_id", chat_id),
-                    "🔇 ɪ ᴡᴀs ᴍᴜᴛᴇᴅ ɪɴ ᴛʜᴇ ᴠɪᴅᴇᴏ ᴄʜᴀᴛ... sᴏ ɪ ʟᴇғᴛ.",
+                    original_chat_id,
+                    (
+                        "🔇 <b>ᴀssɪsᴛᴀɴᴛ ᴍᴜᴛᴇᴅ ɪɴ ᴠɪᴅᴇᴏ ᴄʜᴀᴛ</b>\n\n"
+                        "ɪ ᴡᴀs ᴍᴜᴛᴇᴅ ɪɴ ᴛʜᴇ ᴠɪᴅᴇᴏ ᴄʜᴀᴛ ғᴏʀ ᴍᴏʀᴇ ᴛʜᴀɴ 5 sᴇᴄᴏɴᴅs, sᴏ ɪ ʟᴇғᴛ ᴛʜᴇ ᴠᴄ ᴀɴᴅ ᴛʜᴇ ǫᴜᴇᴜᴇ ʜᴀs ʙᴇᴇɴ ᴄʟᴇᴀʀᴇᴅ.\n\n"
+                        "❖ ᴘʟᴇᴀsᴇ <b>ᴜɴᴍᴜᴛᴇ ᴛʜᴇ ᴀssɪsᴛᴀɴᴛ</b> ᴏʀ ᴍᴀᴋᴇ ɪᴛ ᴀᴅᴍɪɴ ᴡɪᴛʜ ᴍᴀɴᴀɢᴇ ᴠɪᴅᴇᴏ ᴄʜᴀᴛ ʀɪɢʜᴛs.\n"
+                        "❖ ᴛʜᴇɴ ᴊᴜsᴛ ᴘʟᴀʏ ᴀ sᴏɴɢ ᴀɢᴀɪɴ ᴡɪᴛʜ /play, ɪ'ʟʟ ᴊᴏɪɴ ᴀɴᴅ sᴛᴀʀᴛ sᴛʀᴇᴀᴍɪɴɢ."
+                    ),
                     reply_markup=close_markup(_),
                 )
             except Exception:
                 pass
-            await asyncio.sleep(REJOIN_DELAY)
-
-            # 2) wapas join karo aur wahin se song chalao jahan ruka tha
-            ffmpeg = f"-ss {seconds_to_min(played)} -to {duration}" if played > 0 and duration else None
-            stream = self._build_stream(file_path, video=video_mode, ffmpeg=ffmpeg)
-            await self._play_on_assistant(client, chat_id, stream)
-            LOGGER(__name__).info(f"Mute detected -> rejoined VC in {chat_id} at {played}s")
+            LOGGER(__name__).info(f"Muted -> assistant left VC in {chat_id}")
         except Exception as e:
-            LOGGER(__name__).warning(f"Mute rejoin failed in {chat_id}: {e}")
+            LOGGER(__name__).warning(f"Mute leave failed in {chat_id}: {e}")
         finally:
+            await asyncio.sleep(3)  # LEFT_GROUP update guard
             rejoining.discard(chat_id)
 
     def _handle_participant_update(self, client: PyTgCalls, my_id: int, update):
