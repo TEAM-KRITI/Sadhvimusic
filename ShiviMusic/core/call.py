@@ -51,7 +51,7 @@ autoend = {}
 counter = {}
 
 # ---- Auto rejoin when assistant is muted in VC ----
-MUTE_LEAVE_SECONDS = 10     # itne second mute rahe to assistant VC se leave karega
+MUTE_LEAVE_SECONDS = 60     # itne second (1 minute) mute rahe to assistant VC se leave karega
 REJOIN_DELAY = 2            # leave ke baad rejoin se pehle wait
 mute_since = {}             # chat_id -> time jab se assistant muted hai
 MUTE_POLL_EVERY = 2         # har kitne second me mute check hoga
@@ -677,7 +677,7 @@ class Call(PyTgCalls):
                     await self.rejoin_after_mute(assistant, chat_id)
 
     async def rejoin_after_mute(self, client: PyTgCalls, chat_id: int):
-        """Mute 10 sec rahe to assistant VC se leave kare, message bheje.
+        """Mute 1 minute rahe to assistant VC se leave kare, message bheje.
         Queue clear hoti hai, taaki dobara /play karne par song normal chale."""
         if chat_id in rejoining:
             return
