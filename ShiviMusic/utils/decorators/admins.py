@@ -12,7 +12,27 @@ from pyrogram.enums import ChatType
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ShiviMusic import app
-from ShiviMusic.utils.anon import make_anon_admin, is_anon_admin
+
+# ---- Anonymous admin support (inline, alag file ki zarurat nahi) ----
+from pyrogram.types import User as _AnonUser
+
+_ANON_ADMIN_ID = 1087968824  # Telegram ka "GroupAnonymousBot" id
+
+
+def make_anon_admin(client, message) -> bool:
+    sc = getattr(message, "sender_chat", None)
+    if not sc or sc.id != message.chat.id:
+        return False
+    message.from_user = _AnonUser(
+        id=_ANON_ADMIN_ID, is_bot=True, first_name="Anonymous Admin", client=client
+    )
+    message.is_anon_admin = True
+    return True
+
+
+def is_anon_admin(message) -> bool:
+    return bool(getattr(message, "is_anon_admin", False))
+
 from ShiviMusic.misc import SUDOERS, db
 from ShiviMusic.utils.database import (
     get_authuser_names,
