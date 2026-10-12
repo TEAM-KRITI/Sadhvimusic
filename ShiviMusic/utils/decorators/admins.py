@@ -12,6 +12,7 @@ from pyrogram.enums import ChatType
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ShiviMusic import app
+from ShiviMusic.utils.anon import make_anon_admin, is_anon_admin
 from ShiviMusic.misc import SUDOERS, db
 from ShiviMusic.utils.database import (
     get_authuser_names,
@@ -31,6 +32,8 @@ from ..formatters import int_to_alpha
 
 def AdminRightsCheck(mystic):
     async def wrapper(client, message):
+        if message.sender_chat:
+            make_anon_admin(client, message)
         if await is_maintenance() is False:
             if message.from_user.id not in SUDOERS:
                 return await message.reply_text(
@@ -48,7 +51,7 @@ def AdminRightsCheck(mystic):
             _ = get_string(language)
         except:
             _ = get_string("en")
-        if message.sender_chat:
+        if message.sender_chat and not is_anon_admin(message):
             upl = InlineKeyboardMarkup(
                 [
                     [
@@ -73,7 +76,7 @@ def AdminRightsCheck(mystic):
         if not await is_active_chat(chat_id):
             return await message.reply_text(_["general_5"])
         is_non_admin = await is_nonadmin_chat(message.chat.id)
-        if not is_non_admin:
+        if not is_non_admin and not is_anon_admin(message):
             if message.from_user.id not in SUDOERS:
                 admins = adminlist.get(message.chat.id)
                 if not admins:
@@ -127,6 +130,8 @@ def AdminRightsCheck(mystic):
 
 def AdminActual(mystic):
     async def wrapper(client, message):
+        if message.sender_chat:
+            make_anon_admin(client, message)
         if await is_maintenance() is False:
             if message.from_user.id not in SUDOERS:
                 return await message.reply_text(
@@ -144,7 +149,7 @@ def AdminActual(mystic):
             _ = get_string(language)
         except:
             _ = get_string("en")
-        if message.sender_chat:
+        if message.sender_chat and not is_anon_admin(message):
             upl = InlineKeyboardMarkup(
                 [
                     [
@@ -156,7 +161,7 @@ def AdminActual(mystic):
                 ]
             )
             return await message.reply_text(_["general_3"], reply_markup=upl)
-        if message.from_user.id not in SUDOERS:
+        if not is_anon_admin(message) and message.from_user.id not in SUDOERS:
             try:
                 member = (
                     await app.get_chat_member(message.chat.id, message.from_user.id)
