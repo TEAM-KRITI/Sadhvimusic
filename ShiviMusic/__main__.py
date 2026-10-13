@@ -53,7 +53,16 @@ async def send_startup_message():
             reply_markup=markup,
         )
     except Exception as e:
-        LOGGER("ShiviMusic").error(f"Startup message failed: {e}")
+        LOGGER("ShiviMusic").error(f"Startup photo failed: {e}")
+        try:
+            await app.send_message(
+                chat_id=config.LOGGER_ID,
+                text=caption,
+                reply_markup=markup,
+                disable_web_page_preview=True,
+            )
+        except Exception as e2:
+            LOGGER("ShiviMusic").error(f"Startup message failed: {e2}")
 
 
 async def init():
