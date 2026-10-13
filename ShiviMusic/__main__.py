@@ -10,8 +10,11 @@
 
 import asyncio
 import importlib
+import platform
 
+import pyrogram
 from pyrogram import idle
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pytgcalls.exceptions import NoActiveGroupCall
 
 import config
@@ -21,6 +24,36 @@ from ShiviMusic.misc import sudo
 from ShiviMusic.plugins import ALL_MODULES
 from ShiviMusic.utils.database import get_banned_users, get_gbanned
 from config import BANNED_USERS
+
+
+async def send_startup_message():
+    caption = (
+        "❖ <b>BOT STARTED SUCCESSFULLY</b> ✅\n\n"
+        f"• <b>BOT :-</b> {app.mention}\n"
+        f"• <b>PLUGINS :-</b> {len(ALL_MODULES)} LOADED\n"
+        f"• <b>PYROGRAM :-</b> <code>{pyrogram.__version__}</code>\n"
+        f"• <b>PYTHON :-</b> <code>{platform.python_version()}</code>\n\n"
+        f"» <b>POWERED BY :-</b> <a href='{config.SUPPORT_CHANNEL}'>KIRTI-BOTS</a>"
+    )
+    markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "➕ ADD ME IN YOUR GROUP ➕",
+                    url=f"https://t.me/{app.username}?startgroup=true",
+                )
+            ]
+        ]
+    )
+    try:
+        await app.send_photo(
+            chat_id=config.LOGGER_ID,
+            photo=config.START_IMG_URL,
+            caption=caption,
+            reply_markup=markup,
+        )
+    except Exception as e:
+        LOGGER("ShiviMusic").error(f"Startup message failed: {e}")
 
 
 async def init():
@@ -59,6 +92,7 @@ async def init():
     except:
         pass
     await Shivi.decorators()
+    await send_startup_message()
     LOGGER("ShiviMusic").info(
         "╔═════ஜ۩۞۩ஜ════╗\n  ☠︎︎ 𝗠𝗔𝗗𝗘 𝗕𝗬 𝗞𝗜𝗥𝗧𝗜 𝗕𝗢𝗧𝗦 ☠︎︎\n╚═════ஜ۩۞۩ஜ════╝"
     )
