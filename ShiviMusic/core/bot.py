@@ -35,20 +35,6 @@ class Shivi(Client):
         self.username = self.me.username
         self.mention = self.me.mention
 
-        try:
-            await self.send_message(
-                chat_id=config.LOGGER_ID,
-                text=(
-                    f"<u><b>» {self.mention} ʙᴏᴛ sᴛᴀʀᴛᴇᴅ :</b></u>\n\n"
-                    f"ɪᴅ : <code>{self.id}</code>\n"
-                    f"ɴᴀᴍᴇ : {self.name}\n"
-                    f"ᴜsᴇʀɴᴀᴍᴇ : @{self.username}"
-                ),
-            )
-        except:
-            LOGGER(__name__).error(
-                "» ʙᴏᴛ ʜᴀs ғᴀɪʟᴇᴅ ᴛᴏ ᴀᴄᴄᴇss ᴛʜᴇ ʟᴏɢ ɢʀᴏᴜᴘ/ᴄʜᴀɴɴᴇʟ. ᴍᴀᴋᴇ sᴜʀᴇ ᴛʜᴀᴛ ʏᴏᴜ ʜᴀᴠᴇ ᴀᴅᴅᴇᴅ ʏᴏᴜʀ ʙᴏᴛ ᴛᴏ ʏᴏᴜʀ ʟᴏɢ ɢʀᴏᴜᴘ/ᴄʜᴀɴɴᴇʟ."
-            )
         a = await self.get_chat_member(config.LOGGER_ID, self.id)
         if a.status != ChatMemberStatus.ADMINISTRATOR:
             LOGGER(__name__).error(
