@@ -26,27 +26,21 @@ from ShiviMusic.utils.database import get_served_chats, get_served_users
 # ✏️ SETTINGS - yahin se sab badlo
 # ---------------------------------------------------------------
 AB_ENABLED = True  # False karo to auto broadcast band
-AB_INTERVAL_MIN = 240  # 240 min = 4 ghante -> 24 ghante mein 6 broadcast
-AB_TARGET = "chats"  # "chats" | "users" | "both"
-AB_SEND_ON_RESTART = True  # bot restart/start hote hi 1 message turant jaye
-AB_LINK = "https://t.me/kirti_bots"  # Kirti Bots ka link
+AB_INTERVAL_MIN = 1440  # 1440 min = 24 ghante -> din mein sirf 1 broadcast
+AB_TARGET = "both"  # "chats" | "users" | "both"  (both = group + user dono)
+AB_SEND_ON_RESTART = False  # False = restart ke baad broadcast nahi jayega
+AB_MIN_GAP_MIN = AB_INTERVAL_MIN  # itne minute ke andar dobara auto-broadcast nahi jayega
 
 # Photo ka link (ya file_id). Photo nahi chahiye to "" kar do.
 AB_PHOTO = config.START_IMG_URL
 
 # Message (HTML allowed: <b>bold</b>, <i>italic</i>, <a href="...">link</a>)
-AB_TEXT = f"""<b>🎵 ᴍᴜsɪᴄ ʙᴏᴛ ᴋᴀ ᴍᴀᴢᴀ ʟᴏ!</b>
+AB_TEXT = """<b>🎵 ᴍᴜsɪᴄ ʙᴏᴛ ᴋᴀ ᴍᴀᴢᴀ ʟᴏ!</b>
 
-ʜᴀᴍᴀʀᴇ ʙᴏᴛ sᴇ ɢʀᴏᴜᴘ ᴠᴄ ᴍᴇ ʜɪɢʜ ǫᴜᴀʟɪᴛʏ ɢᴀᴀɴᴇ ʙᴀᴊᴀᴏ 🔥
+ʜɪɢʜ ǫᴜᴀʟɪᴛʏ ɢᴀᴀɴᴇ ɢʀᴏᴜᴘ ᴠᴄ ᴍᴇ ʙᴀᴊᴀᴏ 🔥
 
-» ʏᴏᴜᴛᴜʙᴇ, sᴘᴏᴛɪғʏ, ᴀᴘᴘʟᴇ, sᴏᴜɴᴅᴄʟᴏᴜᴅ sᴀʙ sᴜᴘᴘᴏʀᴛ
-» ᴀᴜᴛᴏᴘʟᴀʏ, ǫᴜᴇᴜᴇ, sᴇᴇᴋ, sᴘᴇᴇᴅ ᴄᴏɴᴛʀᴏʟ
-» ᴏɴʟʏ /play ʟɪᴋʜᴏ ᴀᴜʀ ᴍᴜsɪᴄ ᴇɴᴊᴏʏ ᴋᴀʀᴏ
-
-💬 sᴜᴘᴘᴏʀᴛ : <a href="{config.SUPPORT_CHAT}">ᴊᴏɪɴ ʜᴇʀᴇ</a>
-📢 ᴜᴘᴅᴀᴛᴇs : <a href="{AB_LINK}">ᴋɪʀᴛɪ ʙᴏᴛs</a>
-
-<i>ᴍᴀᴅᴇ ʙʏ <a href="{AB_LINK}">ᴋɪʀᴛɪ ʙᴏᴛs</a></i>"""
+» ʏᴏᴜᴛᴜʙᴇ, sᴘᴏᴛɪғʏ, ᴀᴘᴘʟᴇ, sᴏᴜɴᴅᴄʟᴏᴜᴅ sᴜᴘᴘᴏʀᴛ
+» ʙᴀs /play ʟɪᴋʜᴏ ᴀᴜʀ ᴇɴᴊᴏʏ ᴋᴀʀᴏ"""
 # ---------------------------------------------------------------
 
 abdb = mongodb.autobroadcast
@@ -59,8 +53,23 @@ async def _last_sent() -> int:
     return int(data.get("last_sent", 0))
 
 
-async def _mark_sent():
-    await abdb.update_one(_KEY, {"$set": {"last_sent": int(time.time())}}, upsert=True)
+async def _claim(force: bool = False) -> bool:
+    """Atomic claim - do process/dyno ek saath chalein to bhi sirf ek hi broadcast jayega."""
+    now = int(time.time())
+    if force:
+        await abdb.update_one(_KEY, {"$set": {"last_sent": now}}, upsert=True)
+        return True
+    gap = max(AB_MIN_GAP_MIN * 60, 1)
+    try:
+        res = await abdb.update_one(
+            {"_id": "state", "$or": [{"last_sent": {"$lte": now - gap}}, {"last_sent": {"$exists": False}}]},
+            {"$set": {"last_sent": now}},
+            upsert=True,
+        )
+        return bool(res.modified_count or res.upserted_id)
+    except Exception:
+        # DuplicateKeyError => kisi aur ne abhi claim kar liya
+        return False
 
 
 def _buttons():
@@ -71,8 +80,7 @@ def _buttons():
                     "➕ ᴀᴅᴅ ᴍᴇ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ",
                     url=f"https://t.me/{app.username}?startgroup=true",
                 )
-            ],
-            [InlineKeyboardButton("ᴋɪʀᴛɪ ʙᴏᴛs", url=AB_LINK)],
+            ]
         ]
     )
 
@@ -96,14 +104,19 @@ async def _send(chat_id: int):
         )
 
 
-async def _broadcast() -> tuple:
+async def _broadcast(force: bool = False) -> tuple:
+    if _lock.locked():
+        return 0, 0
     async with _lock:
-        await _mark_sent()
+        if not await _claim(force):
+            return 0, 0
         targets = []
         if AB_TARGET in ("chats", "both"):
             targets += [int(c["chat_id"]) for c in await get_served_chats()]
         if AB_TARGET in ("users", "both"):
             targets += [int(u["user_id"]) for u in await get_served_users()]
+        # duplicate hatao (ek chat/user ko ek hi baar jaye)
+        targets = list(dict.fromkeys(targets))
 
         sent = failed = 0
         for chat_id in targets:
@@ -139,7 +152,7 @@ async def ab_now(client, message):
     if _lock.locked():
         return await message.reply_text("⏳ ʙʀᴏᴀᴅᴄᴀsᴛ ᴀʟʀᴇᴀᴅʏ ʀᴜɴɴɪɴɢ.")
     m = await message.reply_text("📢 ʙʀᴏᴀᴅᴄᴀsᴛ sᴛᴀʀᴛ...")
-    sent, failed = await _broadcast()
+    sent, failed = await _broadcast(force=True)
     await m.edit_text(
         f"✅ ᴅᴏɴᴇ\n\nsᴇɴᴛ : <code>{sent}</code>\nғᴀɪʟᴇᴅ : <code>{failed}</code>"
     )
@@ -166,6 +179,8 @@ async def _scheduler():
             await _broadcast()
         except Exception as e:
             LOGGER(__name__).error(f"Auto broadcast (restart) error: {e}")
+    if await _last_sent() == 0:
+        await _claim(force=True)  # pehli baar: restart pe nahi bhejna, 24h ki ghadi yahin se shuru
     while True:
         try:
             if (
