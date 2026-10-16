@@ -41,7 +41,6 @@ from ShiviMusic.utils.recommend import send_recommendations
 from ShiviMusic.utils.exceptions import AssistantErr
 from ShiviMusic.utils.formatters import check_duration, seconds_to_min, speed_converter
 from ShiviMusic.utils.inline.play import stream_markup, stream_markup_timer
-from ShiviMusic.utils.inline.extras import close_markup
 from ShiviMusic.utils.stream.autoclear import auto_clean
 from ShiviMusic.utils.stream.queue import put_queue
 from ShiviMusic.utils.thumbnails import get_thumb as gen_thumb
@@ -49,13 +48,6 @@ from strings import get_string
 
 autoend = {}
 counter = {}
-
-# ---- Auto rejoin when assistant is muted in VC ----
-MUTE_LEAVE_SECONDS = 60     # itne second (1 minute) mute rahe to assistant VC se leave karega
-REJOIN_DELAY = 2            # leave ke baad rejoin se pehle wait
-mute_since = {}             # chat_id -> time jab se assistant muted hai
-MUTE_POLL_EVERY = 2         # har kitne second me mute check hoga
-rejoining = set()           # chat_ids jinme rejoin chal raha hai
 
 async def _clear_(chat_id: int):
     db[chat_id] = []
@@ -291,7 +283,7 @@ class Call(PyTgCalls):
         the normal "queue ended" behaviour).
         """
         if seed_vidid:
-            remember_played(chat_id, seed_vidid)
+            remember_played(chat_id, seed_vidid, seed_title)
 
         status_msg = None
         try:
@@ -326,7 +318,7 @@ class Call(PyTgCalls):
         if not file_path:
             return await _fail()
 
-        remember_played(chat_id, track["vidid"])
+        remember_played(chat_id, track["vidid"], track["title"])
         title = track["title"].title()
         duration_min = track["duration_min"]
 
@@ -637,82 +629,6 @@ class Call(PyTgCalls):
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "stream"
 
-    def _ub_of(self, assistant):
-        return {
-            self.one: self.userbot1,
-            self.two: self.userbot2,
-            self.three: self.userbot3,
-            self.four: self.userbot4,
-            self.five: self.userbot5,
-        }.get(assistant)
-
-    @staticmethod
-    def _is_muted(p) -> bool:
-        return bool(getattr(p, "muted_by_admin", False)) or bool(
-            getattr(p, "muted", False) and not getattr(p, "can_self_unmute", True)
-        )
-
-    async def _mute_poller(self):
-        """Har 2 sec har active chat me assistant ka mute status check karta hai.
-        10 sec lagatar muted -> leave. Har baar kaam karega."""
-        while True:
-            await asyncio.sleep(MUTE_POLL_EVERY)
-            for chat_id in list(db.keys()):
-                if not db.get(chat_id) or chat_id in rejoining:
-                    mute_since.pop(chat_id, None)
-                    continue
-                try:
-                    assistant = await group_assistant(self, chat_id)
-                    ub = self._ub_of(assistant)
-                    parts = await assistant.get_participants(chat_id)
-                    me = next((p for p in parts if p.user_id == ub.me.id), None)
-                except Exception:
-                    continue
-                if me is None or not self._is_muted(me):
-                    mute_since.pop(chat_id, None)
-                    continue
-                since = mute_since.setdefault(chat_id, datetime.now())
-                if (datetime.now() - since).total_seconds() >= MUTE_LEAVE_SECONDS:
-                    mute_since.pop(chat_id, None)
-                    await self.rejoin_after_mute(assistant, chat_id)
-
-    async def rejoin_after_mute(self, client: PyTgCalls, chat_id: int):
-        """Mute 1 minute rahe to assistant VC se leave kare, message bheje.
-        Queue clear hoti hai, taaki dobara /play karne par song normal chale."""
-        if chat_id in rejoining:
-            return
-        playing = db.get(chat_id)
-        if not playing:
-            return
-        rejoining.add(chat_id)
-        try:
-            original_chat_id = playing[0].get("chat_id", chat_id)
-            # 1) VC se niche aao + state clear
-            try:
-                await _clear_(chat_id)
-            except Exception:
-                pass
-            try:
-                await client.leave_call(chat_id, close=False)
-            except Exception:
-                pass
-            # 2) message + Close button
-            try:
-                _ = get_string(await get_lang(chat_id))
-                await app.send_message(
-                    original_chat_id,
-                    "🔇 ɪ ᴡᴀs ᴍᴜᴛᴇᴅ ɪɴ ᴛʜᴇ ᴠɪᴅᴇᴏ ᴄʜᴀᴛ... sᴏ ɪ ʟᴇғᴛ.",
-                    reply_markup=close_markup(_),
-                )
-            except Exception:
-                pass
-            LOGGER(__name__).info(f"Muted -> assistant left VC in {chat_id}")
-        except Exception as e:
-            LOGGER(__name__).warning(f"Mute leave failed in {chat_id}: {e}")
-        finally:
-            await asyncio.sleep(3)  # LEFT_GROUP update guard
-            rejoining.discard(chat_id)
-
     async def ping(self):
         pings = []
         if config.STRING1:
@@ -741,14 +657,12 @@ class Call(PyTgCalls):
             await self.five.start()
 
     async def decorators(self):
-        if not getattr(self, "_mute_poller_task", None):
-            self._mute_poller_task = asyncio.create_task(self._mute_poller())
-        for string, client, ub in [
-            (config.STRING1, self.one, self.userbot1),
-            (config.STRING2, self.two, self.userbot2),
-            (config.STRING3, self.three, self.userbot3),
-            (config.STRING4, self.four, self.userbot4),
-            (config.STRING5, self.five, self.userbot5),
+        for string, client in [
+            (config.STRING1, self.one),
+            (config.STRING2, self.two),
+            (config.STRING3, self.three),
+            (config.STRING4, self.four),
+            (config.STRING5, self.five),
         ]:
             if not string:
                 continue
@@ -763,8 +677,6 @@ class Call(PyTgCalls):
                         types.ChatUpdate.Status.LEFT_GROUP,
                         types.ChatUpdate.Status.CLOSED_VOICE_CHAT,
                     ]:
-                        if update.chat_id in rejoining:
-                            return  # mute-rejoin chal raha hai, queue clear mat karo
                         await self.stop_stream(update.chat_id)
 
 Shivi = Call()
