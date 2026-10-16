@@ -12,6 +12,7 @@ import asyncio
 import glob
 import os
 import random
+import re
 
 import yt_dlp
 from py_yt import VideosSearch
@@ -23,32 +24,76 @@ from ShiviMusic.utils.region import filter_by_region, get_seed_region
 # Used only to make sure autoplay never repeats a song it
 # already played for that chat.
 # =========================================================
-_HISTORY_LIMIT = 50
+_HISTORY_LIMIT = 100
+_KEEP_ON_RESET = 15  # history reset par bhi itne latest songs yaad rahenge
 _played_history: dict[int, list[str]] = {}
+_played_titles: dict[int, list[str]] = {}
+
+_NOISE = re.compile(
+    r"\(.*?\)|\[.*?\]|official|video|audio|lyrics?|lyrical|full song|"
+    r"hd|4k|with lyrics|song|music|\bft\b.*|\bfeat\b.*",
+    re.IGNORECASE,
+)
 
 
-def remember_played(chat_id: int, vidid: str):
-    if not vidid:
-        return
-    hist = _played_history.setdefault(chat_id, [])
-    if vidid in hist:
-        hist.remove(vidid)
-    hist.append(vidid)
-    if len(hist) > _HISTORY_LIMIT:
-        del hist[: len(hist) - _HISTORY_LIMIT]
+def _title_key(title) -> str:
+    """Same song ke alag-alag uploads (lyrics/official/audio) ko ek hi key do."""
+    if not title:
+        return ""
+    t = _NOISE.sub(" ", str(title).lower())
+    t = re.sub(r"[^\w\s]", " ", t)
+    return " ".join(t.split())
+
+
+def remember_played(chat_id: int, vidid: str, title: str = None):
+    if vidid:
+        hist = _played_history.setdefault(chat_id, [])
+        if vidid in hist:
+            hist.remove(vidid)
+        hist.append(vidid)
+        if len(hist) > _HISTORY_LIMIT:
+            del hist[: len(hist) - _HISTORY_LIMIT]
+    key = _title_key(title)
+    if key:
+        th = _played_titles.setdefault(chat_id, [])
+        if key in th:
+            th.remove(key)
+        th.append(key)
+        if len(th) > _HISTORY_LIMIT:
+            del th[: len(th) - _HISTORY_LIMIT]
 
 
 def _history(chat_id: int) -> list:
     return _played_history.get(chat_id, [])
 
 
+def _titles(chat_id: int) -> list:
+    return _played_titles.get(chat_id, [])
+
+
 def clear_history(chat_id: int):
-    _played_history.pop(chat_id, None)
+    """Poori history nahi, sirf purani hatao - latest songs repeat na hon."""
+    hist = _played_history.get(chat_id)
+    if hist:
+        _played_history[chat_id] = hist[-_KEEP_ON_RESET:]
+    th = _played_titles.get(chat_id)
+    if th:
+        _played_titles[chat_id] = th[-_KEEP_ON_RESET:]
 
 
-def _extract_candidates(results, chat_id: int, skip_history: bool):
+def _is_played(chat_id: int, vidid: str, title: str, seed_vidid: str, skip_history: bool) -> bool:
+    if seed_vidid and vidid == seed_vidid:
+        return True  # abhi bajne wala/bajaya hua gaana kabhi nahi
+    if skip_history:
+        return False
+    if vidid in _history(chat_id):
+        return True
+    key = _title_key(title)
+    return bool(key) and key in _titles(chat_id)
+
+
+def _extract_candidates(results, chat_id: int, skip_history: bool, seed_vidid: str = None):
     candidates = []
-    played = [] if skip_history else _history(chat_id)
     for video in results:
         vidid = video.get("id")
         title = video.get("title")
@@ -56,7 +101,7 @@ def _extract_candidates(results, chat_id: int, skip_history: bool):
         duration = video.get("duration")
         if not (vidid and title and link and duration):
             continue
-        if vidid in played:
+        if _is_played(chat_id, vidid, title, seed_vidid, skip_history):
             continue
         thumbs = video.get("thumbnails") or []
         thumb = thumbs[0].get("url", "").split("?")[0] if thumbs else None
@@ -107,9 +152,8 @@ def _fetch_mix_sync(video_id: str, limit: int = 20) -> list:
     return (info or {}).get("entries") or []
 
 
-def _extract_mix_candidates(entries, chat_id: int, skip_history: bool):
+def _extract_mix_candidates(entries, chat_id: int, skip_history: bool, seed_vidid: str = None):
     candidates = []
-    played = [] if skip_history else _history(chat_id)
     for e in entries or []:
         if not e:
             continue
@@ -117,7 +161,7 @@ def _extract_mix_candidates(entries, chat_id: int, skip_history: bool):
         title = e.get("title")
         if not (vidid and title):
             continue
-        if vidid in played:
+        if _is_played(chat_id, vidid, title, seed_vidid, skip_history):
             continue
         duration = e.get("duration")
         if isinstance(duration, (int, float)):
@@ -159,7 +203,7 @@ async def _fetch_mix_candidates(chat_id: int, seed_vidid: str, region=None) -> l
             print(f"[AUTOPLAY MIX ERROR] {e}")
             continue
         last_entries = entries or last_entries
-        candidates = _extract_mix_candidates(entries, chat_id, skip_history=False)
+        candidates = _extract_mix_candidates(entries, chat_id, False, seed_vidid)
         candidates = filter_by_region(candidates, region)
         if candidates:
             return candidates
@@ -169,7 +213,7 @@ async def _fetch_mix_candidates(chat_id: int, seed_vidid: str, region=None) -> l
         # taaki autoplay kabhi stall na ho
         clear_history(chat_id)
         return filter_by_region(
-            _extract_mix_candidates(last_entries, chat_id, skip_history=True), region
+            _extract_mix_candidates(last_entries, chat_id, False, seed_vidid), region
         )
     return []
 
@@ -209,13 +253,13 @@ async def fetch_autoplay_track(chat_id: int, seed_title: str, seed_vidid: str = 
         return None
 
     candidates = filter_by_region(
-        _extract_candidates(results, chat_id, skip_history=False), region
+        _extract_candidates(results, chat_id, False, seed_vidid), region
     )
 
     if not candidates:
         clear_history(chat_id)
         candidates = filter_by_region(
-            _extract_candidates(results, chat_id, skip_history=True), region
+            _extract_candidates(results, chat_id, False, seed_vidid), region
         )
 
     if not candidates:
