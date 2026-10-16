@@ -1,10 +1,47 @@
 import html
 
-from pyrogram.enums import ParseMode
+from pyrogram.enums import ChatMemberStatus, ChatMembersFilter, ParseMode
 
 from ShiviMusic import app
 from ShiviMusic.utils.database import is_on_off
 from config import LOGGER_ID
+
+
+async def get_group_extra(chat_id):
+    """Group ke members count aur owner (id, name, username) ka log block."""
+    count = "Unknown"
+    owner_id = "Unknown"
+    owner_name = "Unknown"
+    owner_username = "None"
+
+    try:
+        count = await app.get_chat_members_count(chat_id)
+    except Exception:
+        pass
+
+    try:
+        async for adm in app.get_chat_members(
+            chat_id, filter=ChatMembersFilter.ADMINISTRATORS
+        ):
+            if adm.status == ChatMemberStatus.OWNER and adm.user:
+                ou = adm.user
+                owner_id = ou.id
+                owner_name = html.escape(
+                    f"{ou.first_name or ''} {ou.last_name or ''}".strip()
+                    or "Unknown"
+                )
+                owner_username = (
+                    f"@{ou.username}" if ou.username else "None"
+                )
+                break
+    except Exception:
+        pass
+
+    return (
+        f"<b>● ɢʀᴏᴜᴘ ᴍᴇᴍʙᴇʀs ➠</b> {count}\n"
+        f"<b>● ᴏᴡɴᴇʀ ɴᴀᴍᴇ ➠</b> {owner_name}\n"
+        f"<b>● ᴏᴡɴᴇʀ ᴜsᴇʀɴᴀᴍᴇ ➠</b> {owner_username}\n"
+    )
 
 
 async def play_logs(message, streamtype):
@@ -37,13 +74,15 @@ async def play_logs(message, streamtype):
             else "None"
         )
 
+        group_extra = await get_group_extra(chat_id)
+
         logger_text = f"""
 <b>❖ {app.mention} ᴘʟᴀʏ ʟᴏɢ</b>
 
 <b>● ᴄʜᴀᴛ ɪᴅ ➠</b> <code>{chat_id}</code>
 <b>● ᴄʜᴀᴛ ɴᴀᴍᴇ ➠</b> {chat_title}
 <b>● ᴄʜᴀᴛ ᴜsᴇʀɴᴀᴍᴇ ➠</b> {chat_username}
-
+{group_extra}
 <b>● ᴜsᴇʀ ɪᴅ ➠</b> <code>{user_id}</code>
 <b>● ɴᴀᴍᴇ ➠</b> {user_mention}
 <b>● ᴜsᴇʀɴᴀᴍᴇ ➠</b> {user_username}
@@ -81,6 +120,8 @@ async def track_logs(chat_id, title, vidid, source, user=None):
         except Exception:
             chat_title, chat_username = "Unknown", "None"
 
+        group_extra = await get_group_extra(chat_id)
+
         link = f"https://www.youtube.com/watch?v={vidid}"
         if user:
             user_block = (
@@ -96,7 +137,8 @@ async def track_logs(chat_id, title, vidid, source, user=None):
             f"<b>❖ {app.mention} ᴘʟᴀʏ ʟᴏɢ</b>\n\n"
             f"<b>● ᴄʜᴀᴛ ɪᴅ ➠</b> <code>{chat_id}</code>\n"
             f"<b>● ᴄʜᴀᴛ ɴᴀᴍᴇ ➠</b> {chat_title}\n"
-            f"<b>● ᴄʜᴀᴛ ᴜsᴇʀɴᴀᴍᴇ ➠</b> {chat_username}\n\n"
+            f"<b>● ᴄʜᴀᴛ ᴜsᴇʀɴᴀᴍᴇ ➠</b> {chat_username}\n"
+            f"{group_extra}\n"
             f"{user_block}"
             f"<b>● ᴛɪᴛʟᴇ ➠</b> <a href=\"{link}\">{html.escape(title or 'Unknown')}</a>\n"
             f"<b>● sᴛʀᴇᴀᴍᴛʏᴘᴇ ➠</b> {source}"
