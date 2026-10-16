@@ -40,7 +40,6 @@ async def get_group_extra(chat_id):
     return (
         f"<b>● ɢʀᴏᴜᴘ ᴍᴇᴍʙᴇʀs ➠</b> {count}\n"
         f"<b>● ᴏᴡɴᴇʀ ɴᴀᴍᴇ ➠</b> {owner_name}\n"
-        f"<b>● ᴏᴡɴᴇʀ ᴜsᴇʀɴᴀᴍᴇ ➠</b> {owner_username}\n"
     )
 
 
