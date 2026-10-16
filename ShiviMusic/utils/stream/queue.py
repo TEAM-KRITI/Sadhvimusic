@@ -12,6 +12,7 @@ import asyncio
 from typing import Union
 
 from ShiviMusic.misc import db
+from ShiviMusic.utils.autoplay import remember_played
 from ShiviMusic.utils.formatters import check_duration, seconds_to_min
 from config import autoclean, time_to_seconds
 
@@ -29,6 +30,11 @@ async def put_queue(
     forceplay: Union[bool, str] = None,
 ):
     title = title.title()
+    try:
+        if vidid and isinstance(vidid, str) and len(vidid) == 11:
+            remember_played(chat_id, vidid, title)
+    except Exception:
+        pass
     try:
         duration_in_seconds = time_to_seconds(duration) - 3
     except:
