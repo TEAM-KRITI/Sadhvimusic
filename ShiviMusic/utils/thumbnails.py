@@ -188,28 +188,29 @@ def _fmt(sec):
     return f"{h}:{m:02d}:{sc:02d}" if h else f"{m}:{sc:02d}"
 
 
-def _render_card(src, pct, is_live, accent):
-    """Blurred art background + frosted glass card + round album art + progress bar."""
-    bg = ImageOps.fit(src, (W, H), Image.LANCZOS).filter(ImageFilter.GaussianBlur(26))
-    bg = Image.alpha_composite(bg, Image.new("RGBA", (W, H), (*_mix(accent, (0, 0, 0), 0.55), 150)))   # colour changes every song
+def _render_card(src, pct, is_live):
+    """Song's own art, blurred, as background + clear frosted glass card + round art + bar."""
+    bg = ImageOps.fit(src, (W, H), Image.LANCZOS).filter(ImageFilter.GaussianBlur(22))
+    bg = ImageEnhance.Color(bg).enhance(1.08)
+    bg = Image.alpha_composite(bg, Image.new("RGBA", (W, H), (0, 0, 0, 22)))
 
     x0, y0, x1, y1 = CARD_BOX
     cw, ch = x1 - x0, y1 - y0
 
-    # glass : extra-blurred + lightened copy of the background, clipped to the rounded card
-    glass = bg.crop(CARD_BOX).filter(ImageFilter.GaussianBlur(14))
-    glass = Image.alpha_composite(glass, Image.new("RGBA", (cw, ch), (*_mix(accent, (255, 255, 255), 0.55), 78)))
+    # glass : slightly more blurred copy of the background, a touch lighter, clipped to the rounded card
+    glass = bg.crop(CARD_BOX).filter(ImageFilter.GaussianBlur(10))
+    glass = Image.alpha_composite(glass, Image.new("RGBA", (cw, ch), (255, 255, 255, 40)))
     m = Image.new("L", (cw * 3, ch * 3), 0)
     _rrect(ImageDraw.Draw(m), (0, 0, cw * 3 - 1, ch * 3 - 1), CARD_R * 3, fill=255)
     m = m.resize((cw, ch), Image.LANCZOS)
     bg.paste(glass, (x0, y0), m)
 
-    # thin light border (drawn supersampled so the corners stay smooth)
+    # thin light border (supersampled -> smooth corners)
     S = 3
     L = Image.new("RGBA", (cw * S, ch * S), (0, 0, 0, 0))
     ld = ImageDraw.Draw(L)
-    _rrect(ld, (0, 0, cw * S - 1, ch * S - 1), CARD_R * S, outline=(*_mix(accent, (255, 255, 255), 0.65), 160), width=2 * S)
-    _rrect(ld, (2 * S, 2 * S, cw * S - 1 - 2 * S, ch * S - 1 - 2 * S), (CARD_R - 2) * S, outline=(*_mix(accent, (255, 255, 255), 0.65), 45), width=S)
+    _rrect(ld, (0, 0, cw * S - 1, ch * S - 1), CARD_R * S, outline=(255, 255, 255, 120), width=2 * S)
+    _rrect(ld, (2 * S, 2 * S, cw * S - 1 - 2 * S, ch * S - 1 - 2 * S), (CARD_R - 2) * S, outline=(255, 255, 255, 35), width=S)
     bg.alpha_composite(L.resize((cw, ch), Image.LANCZOS), (x0, y0))
 
     # round album art
@@ -220,16 +221,39 @@ def _render_card(src, pct, is_live, accent):
     cm = cm.resize((d_art, d_art), Image.LANCZOS)
     bg.paste(art, (ART_C[0] - ART_R, ART_C[1] - ART_R), cm)
 
-    # progress bar + pause icon (translucent white, supersampled)
+    # progress bar (supersampled)
     L = Image.new("RGBA", (W * 2, H * 2), (0, 0, 0, 0))
     ld = ImageDraw.Draw(L)
-    _rrect(ld, (BAR_X0 * 2, (BAR_Y - 3) * 2, BAR_X1 * 2, (BAR_Y + 3) * 2), 6, fill=(*_mix(accent, (255, 255, 255), 0.6), 120))
+    _rrect(ld, (BAR_X0 * 2, (BAR_Y - 3) * 2, BAR_X1 * 2, (BAR_Y + 3) * 2), 6, fill=(255, 255, 255, 115))
     px = BAR_X1 if is_live else BAR_X0 + (BAR_X1 - BAR_X0) * pct / 100
-    _rrect(ld, (BAR_X0 * 2, (BAR_Y - 3) * 2, max(px, BAR_X0 + 6) * 2, (BAR_Y + 3) * 2), 6, fill=(*_mix(accent, (255, 255, 255), 0.8), 250))
-    for bx in (1208, 1236):
-        _rrect(ld, (bx * 2, 24 * 2, (bx + 20) * 2, 78 * 2), 8, fill=(255, 255, 255, 175))
+    _rrect(ld, (BAR_X0 * 2, (BAR_Y - 3) * 2, max(px, BAR_X0 + 6) * 2, (BAR_Y + 3) * 2), 6, fill=(255, 255, 255, 250))
     bg = Image.alpha_composite(bg, L.resize((W, H), Image.LANCZOS))
     return bg
+
+
+_SMALL_CAPS = {
+    "ᴀ": "A", "ʙ": "B", "ᴄ": "C", "ᴅ": "D", "ᴇ": "E", "ꜰ": "F", "ɢ": "G", "ʜ": "H",
+    "ɪ": "I", "ᴊ": "J", "ᴋ": "K", "ʟ": "L", "ᴍ": "M", "ɴ": "N", "ᴏ": "O", "ᴘ": "P",
+    "ǫ": "Q", "ʀ": "R", "ꜱ": "S", "ᴛ": "T", "ᴜ": "U", "ᴠ": "V", "ᴡ": "W", "ʏ": "Y",
+    "ᴢ": "Z", "ᴧ": "A",
+}
+
+
+def _plain_name(raw):
+    """'[Name](tg://user?id=1)' / '<a ..>Name</a>' / fancy-font name -> clean plain Name."""
+    import unicodedata
+    raw = str(raw or "").strip()
+    if not raw:
+        return ""
+    if "ᴧᴜᴛᴏ" in raw:                       # autoplay marker used by the bot
+        return "Autoplay"
+    m = re.match(r"^\[(.+?)\]\(.*\)$", raw, re.S)
+    if m:
+        raw = m.group(1)
+    raw = re.sub(r"<[^>]+>", "", raw)
+    raw = "".join(_SMALL_CAPS.get(ch, ch) for ch in raw)
+    raw = unicodedata.normalize("NFKC", raw)
+    return _clean_title(raw)
 
 
 async def _fetch_meta_via_search(videoid: str):
@@ -273,8 +297,7 @@ async def _fetch_title_via_oembed(videoid: str):
     return None
 
 
-async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = True, user_name: str = "Badnam") -> str:
-    # progress_percent / user_name are kept only so existing callers don't break.
+async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = True, user_name: str = "") -> str:
     print(f"📥 get_thumb called with videoid: {videoid}")
 
     timestamp = int(time.time() * 1000)
@@ -321,7 +344,7 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
 
         pct = progress_percent if 0 < progress_percent < 100 else 25   # 25 % = same look as reference
         total = 0 if is_live else _parse_seconds(duration_text)
-        bg = _render_card(src, pct, is_live, accent)
+        bg = _render_card(src, pct, is_live)
         draw = ImageDraw.Draw(bg)
 
         title_font  = ImageFont.truetype(FONT_TITLE, 46)
@@ -345,7 +368,8 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
         sub = trim_text(f"{channel_txt} \u00b7 {views_text}", sub_font, hindi_font, MAX_TITLE_WIDTH)
         x = TEXT_X
         for f, t in _segments(sub, sub_font, hindi_font):
-            draw.text((x, 347), t, font=f, fill=(*_mix(accent, (255, 255, 255), 0.82), 235), anchor="ls")
+            draw.text((x + 1, 348), t, font=f, fill=(0, 0, 0, 80), anchor="ls")
+            draw.text((x, 347), t, font=f, fill=(244, 244, 244, 235), anchor="ls")
             x += f.getlength(t)
 
         # times around the progress bar
@@ -353,19 +377,35 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
             left_t, right_t = "LIVE", ""
         else:
             left_t, right_t = _fmt(total * pct / 100 if progress_percent else 0), _fmt(total)
+        draw.text((TEXT_X + 1, BAR_Y + 9), left_t, font=time_font, fill=(0, 0, 0, 80), anchor="ls")
         draw.text((TEXT_X, BAR_Y + 8), left_t, font=time_font, fill="white", anchor="ls")
         if right_t:
+            draw.text((BAR_X1 + 12, BAR_Y + 9), right_t, font=time_font, fill=(0, 0, 0, 80), anchor="ls")
             draw.text((BAR_X1 + 11, BAR_Y + 8), right_t, font=time_font, fill="white", anchor="ls")
+
+        # requested by <name> (inside the card, under the progress bar)
+        req_name = _plain_name(user_name)
+        if req_name:
+            label = "Requested by : "
+            lab_w = sub_font.getlength(label)
+            name = trim_text(req_name, sub_font, hindi_font, MAX_TITLE_WIDTH - lab_w)
+            draw.text((TEXT_X + 1, 463), label, font=sub_font, fill=(0, 0, 0, 80), anchor="ls")
+            draw.text((TEXT_X, 462), label, font=sub_font, fill=(244, 244, 244, 235), anchor="ls")
+            x = TEXT_X + lab_w
+            for f, t in _segments(name, sub_font, hindi_font):
+                draw.text((x + 1, 463), t, font=f, fill=(0, 0, 0, 80), anchor="ls")
+                draw.text((x, 462), t, font=f, fill="white", anchor="ls")
+                x += f.getlength(t)
 
         # credits (fixed yellow)
         dw = credit_font.getlength(DEV_TEXT)
-        draw.text((W - 25 - dw + 1, 672 + 1), DEV_TEXT, font=credit_font, fill=(0, 0, 0, 140))
-        draw.text((W - 25 - dw, 672), DEV_TEXT, font=credit_font, fill=CREDIT_COLOR)
+        draw.text((W - 25 - dw + 1, 30 + 1), DEV_TEXT, font=credit_font, fill=(0, 0, 0, 140))
+        draw.text((W - 25 - dw, 30), DEV_TEXT, font=credit_font, fill=CREDIT_COLOR)
         draw.text((25 + 1, 672 + 1), OWNER_TEXT, font=owner_font, fill=(0, 0, 0, 140))
         draw.text((25, 672), OWNER_TEXT, font=owner_font, fill=CREDIT_COLOR)
 
         bg.convert("RGB").save(cache_path, "PNG")
-        print(f"✓ Glass-card thumbnail saved, colour RGB{accent}")
+        print("✓ Glass-card thumbnail saved")
 
     except Exception as e:
         import traceback
