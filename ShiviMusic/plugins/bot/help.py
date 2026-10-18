@@ -88,6 +88,10 @@ async def helper_cb(client, CallbackQuery):
 async def helper_cb(client, CallbackQuery):
     await CallbackQuery.edit_message_text(Helper.HELP_NIGHT, reply_markup=InlineKeyboardMarkup(BUTTONS.INFO_NEW))
 
+@app.on_callback_query(filters.regex("aplay_cb") & ~BANNED_USERS)
+async def helper_cb(client, CallbackQuery):
+    await CallbackQuery.edit_message_text(Helper.HELP_AUTOPLAY, reply_markup=InlineKeyboardMarkup(BUTTONS.INFO_NEW))
+
 @app.on_callback_query(filters.regex("abot_cb") & ~BANNED_USERS)
 async def helper_cb(client, CallbackQuery):
     bot = await client.get_me()
