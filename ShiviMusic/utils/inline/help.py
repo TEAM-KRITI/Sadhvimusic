@@ -15,81 +15,33 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from ShiviMusic import app
 
 
+def _btn(text, data):
+    return InlineKeyboardButton(text=text, callback_data=data)
+
+
 def help_pannel(_, START: Union[bool, int] = None):
-    first = [InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close")]
-    second = [
-        InlineKeyboardButton(
-            text=_["BACK_BUTTON"],
-            callback_data="settingsback_helper",
-        ),
-    ]
-
-    mark = second if START else first
-
+    """Main help menu : 3x3 grid + BACK (screenshot jaisa)."""
+    back_data = "settingsback_helper" if START else "close"
+    back_text = "• ʙᴀᴄᴋ •" if START else _["CLOSE_BUTTON"]
     upl = InlineKeyboardMarkup(
         [
-            [
-                InlineKeyboardButton(
-                    text=_["H_B_25"],
-                    callback_data="help_callback hb1",
-                ),
-                InlineKeyboardButton(
-                    text=_["H_B_26"],
-                    callback_data="help_callback hb2",
-                ),
-                InlineKeyboardButton(
-                    text=_["H_B_28"],
-                    callback_data="help_callback hb3",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text=_["H_B_27"],
-                    callback_data="help_callback hb4",
-                ),
-                InlineKeyboardButton(
-                    text=_["H_B_31"],
-                    callback_data="help_callback hb5",
-                ),
-                InlineKeyboardButton(
-                    text=_["H_B_29"],
-                    callback_data="help_callback hb6",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text=_["H_B_33"],
-                    callback_data="help_callback hb7",
-                ),
-                InlineKeyboardButton(
-                    text=_["H_B_30"],
-                    callback_data="help_callback hb8",
-                ),
-                InlineKeyboardButton(
-                    text=_["H_B_32"],
-                    callback_data="help_callback hb9",
-                ),
-            ],
-
-            [
-                InlineKeyboardButton(
-                    text="• ᴀᴜᴛᴏ-ᴘʟᴀʏ •",
-                    callback_data="help_callback hb10",
-                ),
-                InlineKeyboardButton(
-                    text="• ᴡᴇʟᴄᴏᴍᴇ •",
-                    callback_data="wel_cb",
-                ),
-                InlineKeyboardButton(
-                    text="• ɴɪɢʜᴛᴍᴏᴅᴇ •",
-                    callback_data="night_cb",
-                ),
-            ],
-
-            mark,
+            [_btn("ᴀᴅᴍɪη", "help_callback hb1"), _btn("ᴀᴜᴛʜ", "help_callback hb2"), _btn("ᴄ-ᴘʟᴀʏ", "help_callback hb3")],
+            [_btn("ʟᴏᴏᴘ", "help_callback hb4"), _btn("ᴘʟᴀʏ", "help_callback hb5"), _btn("sʜᴜғғɪʟᴇ", "help_callback hb6")],
+            [_btn("sᴇᴇᴋ", "help_callback hb7"), _btn("sᴘᴇᴇᴅ", "help_callback hb8"), _btn("ᴇxᴛʀᴀ", "help_extra")],
+            [_btn(back_text, back_data)],
         ]
     )
     return upl
+
+
+def help_extra_panel(_):
+    """EXTRA page : Chatbot / AFK / VC Logger / Night Mode / Home."""
+    return InlineKeyboardMarkup(
+        [
+            [_btn("ᴄʜᴀᴛʙᴏᴛ", "help_callback hb10"), _btn("ᴀғᴋ", "help_callback hb11"), _btn("ᴠᴄ ʟᴏɢɢᴇʀ", "help_callback hb12")],
+            [_btn("ɴɪɢʜᴛ ᴍᴏᴅᴇ", "night_cb"), _btn("ʜᴏᴍᴇ", "settingsback_helper")],
+        ]
+    )
 
 
 def help_back_markup(_):
@@ -98,7 +50,7 @@ def help_back_markup(_):
             [
                 InlineKeyboardButton(
                     text=_["BACK_BUTTON"],
-                    callback_data=f"settings_back_helper",
+                    callback_data="settings_back_helper",
                 ),
             ]
         ]
