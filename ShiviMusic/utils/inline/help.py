@@ -35,13 +35,18 @@ def help_pannel(_, START: Union[bool, int] = None):
 
 
 def help_extra_panel(_):
-    """EXTRA page : Chatbot / AFK / VC Logger / Night Mode / Home."""
+    """EXTRA page : Welcome / Night Mode / Lock / Autoplay / Home."""
     return InlineKeyboardMarkup(
         [
-            [_btn("ᴄʜᴀᴛʙᴏᴛ", "help_callback hb10"), _btn("ᴀғᴋ", "help_callback hb11"), _btn("ᴠᴄ ʟᴏɢɢᴇʀ", "help_callback hb12")],
-            [_btn("ɴɪɢʜᴛ ᴍᴏᴅᴇ", "night_cb"), _btn("ʜᴏᴍᴇ", "settingsback_helper")],
+            [_btn("ᴡᴇʟᴄᴏᴍᴇ", "help_callback hb10"), _btn("ɴɪɢʜᴛ ᴍᴏᴅᴇ", "help_callback hb11")],
+            [_btn("ʟᴏᴄᴋ", "help_callback hb12"), _btn("ᴀᴜᴛᴏᴘʟᴀʏ", "help_callback hb13")],
+            [_btn("• ʙᴀᴄᴋ •", "settings_back_helper"), _btn("ʜᴏᴍᴇ", "settingsback_helper")],
         ]
     )
+
+
+def help_extra_back_markup(_):
+    return InlineKeyboardMarkup([[_btn(_["BACK_BUTTON"], "help_extra")]])
 
 
 def help_back_markup(_):
