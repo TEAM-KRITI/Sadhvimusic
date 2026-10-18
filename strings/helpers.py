@@ -239,23 +239,44 @@ PG_SPEED = """<b><u>⊚ sᴘᴇᴇᴅ :</u></b>
 /speed ᴏʀ /playback : ᴀᴅᴊᴜsᴛ ᴛʜᴇ ᴀᴜᴅɪᴏ ᴘʟᴀʏʙᴀᴄᴋ sᴘᴇᴇᴅ ɪɴ ɢʀᴏᴜᴘ.
 """
 
-PG_CHATBOT = """<b><u>⊚ ᴄʜᴀᴛʙᴏᴛ :</u></b>
+PG_WELCOME = """<b><u>⊚ ᴡᴇʟᴄᴏᴍᴇ :</u></b>
 
-ᴛʜɪs ᴍᴏᴅᴜʟᴇ ɪs ɴᴏᴛ ᴇɴᴀʙʟᴇᴅ ɪɴ ᴛʜɪs ʙᴏᴛ ʏᴇᴛ.
+/welcome : ᴡᴇʟᴄᴏᴍᴇ sᴇᴛᴛɪɴɢs ᴡɪᴛʜ ɪɴʟɪɴᴇ ʙᴜᴛᴛᴏɴs (ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs).
+
+<i>» ɴᴏᴛᴇ :- ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ ᴀᴜᴛᴏ ᴅᴇʟᴇᴛᴇs ɪɴ 5 ᴍɪɴᴜᴛᴇs.</i>
 """
 
-PG_AFK = """<b><u>⊚ ᴀғᴋ :</u></b>
+PG_NIGHT = """<b><u>⊚ ɴɪɢʜᴛ ᴍᴏᴅᴇ :</u></b>
 
-ᴛʜɪs ᴍᴏᴅᴜʟᴇ ɪs ɴᴏᴛ ᴇɴᴀʙʟᴇᴅ ɪɴ ᴛʜɪs ʙᴏᴛ ʏᴇᴛ.
+/nightmode : ɴɪɢʜᴛ ᴍᴏᴅᴇ sᴇᴛᴛɪɴɢs ᴡɪᴛʜ ɪɴʟɪɴᴇ ʙᴜᴛᴛᴏɴs (ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs).
 """
 
-PG_VCLOG = """<b><u>⊚ ᴠᴄ ʟᴏɢɢᴇʀ :</u></b>
+PG_LOCK = """<b><u>⊚ ʟᴏᴄᴋs :</u></b>
 
-ᴛʜɪs ᴍᴏᴅᴜʟᴇ ɪs ɴᴏᴛ ᴇɴᴀʙʟᴇᴅ ɪɴ ᴛʜɪs ʙᴏᴛ ʏᴇᴛ.
+<b>➻ ʀᴇǫᴜɪʀᴇs ᴄᴀɴ_ᴄʜᴀɴɢᴇ_ɪɴғᴏ ᴘᴇʀᴍɪssɪᴏɴ.</b>
+
+/lock [ᴛʏᴘᴇ] : ʟᴏᴄᴋ ᴀ ᴍᴇssᴀɢᴇ ᴛʏᴘᴇ ɪɴ ᴛʜᴇ ɢʀᴏᴜᴘ.
+/unlock [ᴛʏᴘᴇ] : ᴜɴʟᴏᴄᴋ ᴀ ᴍᴇssᴀɢᴇ ᴛʏᴘᴇ.
+/unlockall : ᴜɴʟᴏᴄᴋ ᴇᴠᴇʀʏᴛʜɪɴɢ.
+/locks : sʜᴏᴡ ᴄᴜʀʀᴇɴᴛ ʟᴏᴄᴋs.
+/locktypes : sʜᴏᴡ ᴀʟʟ ʟᴏᴄᴋᴀʙʟᴇ ᴛʏᴘᴇs.
+/lockadmin : ʟᴏᴄᴋ ᴀᴅᴍɪɴ ʀɪɢʜᴛs.
+/lockwarns ᴀɴᴅ /clearwarns : ᴍᴀɴᴀɢᴇ ʟᴏᴄᴋ ᴡᴀʀɴɪɴɢs.
+/approve ᴏʀ /unapprove : ᴇxᴇᴍᴘᴛ ᴀ ᴜsᴇʀ ғʀᴏᴍ ʟᴏᴄᴋs.
+/approvedusers : sʜᴏᴡ ᴀᴘᴘʀᴏᴠᴇᴅ ᴜsᴇʀs.
+"""
+
+PG_AUTOPLAY = """<b><u>⊚ ᴀᴜᴛᴏᴘʟᴀʏ :</u></b>
+
+<b>➻ ᴀғᴛᴇʀ ǫᴜᴇᴜᴇ ᴇɴᴅs, ʙᴏᴛ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴘʟᴀʏs ʀᴇʟᴀᴛᴇᴅ sᴏɴɢs.</b>
+
+/autoplay ᴏʀ /aplay : sʜᴏᴡ ᴀᴜᴛᴏᴘʟᴀʏ sᴛᴀᴛᴜs.
+/autoplay on : ᴇɴᴀʙʟᴇ ᴀᴜᴛᴏᴘʟᴀʏ (ᴀᴅᴍɪɴs).
+/autoplay off : ᴅɪsᴀʙʟᴇ ᴀᴜᴛᴏᴘʟᴀʏ (ᴀᴅᴍɪɴs).
 """
 
 HELP_PAGES = {
     "hb1": PG_ADMIN, "hb2": PG_AUTH, "hb3": PG_CPLAY, "hb4": PG_LOOP,
     "hb5": PG_PLAY, "hb6": PG_SHUFFLE, "hb7": PG_SEEK, "hb8": PG_SPEED,
-    "hb10": PG_CHATBOT, "hb11": PG_AFK, "hb12": PG_VCLOG,
+    "hb10": PG_WELCOME, "hb11": PG_NIGHT, "hb12": PG_LOCK, "hb13": PG_AUTOPLAY,
 }
