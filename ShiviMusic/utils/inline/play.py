@@ -79,7 +79,6 @@ def stream_markup_timer(_, chat_id, played, dur):
             ),
         ],
         _control_rows(chat_id, style),
-        _fav_row(chat_id, style),
         [
             InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close", style=style),
         ],
@@ -91,7 +90,6 @@ def stream_markup(_, chat_id):
     style = random.choice(STYLES)
     buttons = [
         _control_rows(chat_id, style),
-        _fav_row(chat_id, style),
         [
             InlineKeyboardButton(text=_["CLOSE_BUTTON"], callback_data="close", style=style),
         ],
