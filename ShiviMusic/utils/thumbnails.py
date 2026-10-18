@@ -166,6 +166,21 @@ BAR_X0, BAR_X1, BAR_Y = 210, 1070, 492
 DARK = (40, 40, 40, 255)
 
 
+def _rrect(d, box, radius, fill):
+    try:
+        d.rounded_rectangle(box, radius=radius, fill=fill)
+    except Exception:
+        d.rectangle(box, fill=fill)
+
+
+def _safe(fn, *args):
+    """Ek chhota icon fail ho jaye to poora thumbnail kharab na ho."""
+    try:
+        fn(*args)
+    except Exception as e:
+        print(f"[thumb] {getattr(fn, '__name__', 'draw')} skipped: {type(e).__name__}: {e}")
+
+
 def _gray(accent, base=208, tint=0.14):
     return _mix((base, base, base), accent, tint)
 
@@ -195,7 +210,7 @@ def _draw_wave_icon(d, cx, cy):
     gap = 5
     x = cx - (n - 1) * gap / 2
     for h in heights:
-        d.rounded_rectangle((_s(x - 1.2), _s(cy - h / 2), _s(x + 1.2), _s(cy + h / 2)), radius=_s(1.2), fill=DARK)
+        _rrect(d, (_s(x - 1.2), _s(cy - h / 2), _s(x + 1.2), _s(cy + h / 2)), _s(1.2), DARK)
         x += gap
 
 
@@ -214,7 +229,7 @@ def _draw_controls(d, cy):
     # pause
     cx = 640
     for dx in (-14, 14):
-        d.rounded_rectangle((_s(cx + dx - 8), _s(cy - 28), _s(cx + dx + 8), _s(cy + 28)), radius=_s(3), fill=DARK)
+        _rrect(d, (_s(cx + dx - 8), _s(cy - 28), _s(cx + dx + 8), _s(cy + 28)), _s(3), DARK)
     # forward
     cx = 830
     for dx in (-14, 14):
@@ -224,7 +239,7 @@ def _draw_controls(d, cy):
 def _draw_pill(d, fill):
     import math
     x0, y0, x1, y1 = PILL_BOX
-    d.rounded_rectangle((_s(x0), _s(y0), _s(x1), _s(y1)), radius=_s(46), fill=fill)
+    _rrect(d, (_s(x0), _s(y0), _s(x1), _s(y1)), _s(46), fill)
     cy = (y0 + y1) / 2
     # play triangle
     px = x0 + 34
@@ -238,7 +253,7 @@ def _draw_pill(d, fill):
         env = math.exp(-(((i - mid) / (n * 0.20)) ** 2))
         h = 6 + 52 * env * random.uniform(0.55, 1.0) + random.uniform(0, 6)
         x = bx0 + i * step
-        d.rounded_rectangle((_s(x - 2), _s(cy - h / 2), _s(x + 2), _s(cy + h / 2)), radius=_s(2), fill=(255, 255, 255, 255))
+        _rrect(d, (_s(x - 2), _s(cy - h / 2), _s(x + 2), _s(cy + h / 2)), _s(2), (255, 255, 255, 255))
 
 
 def _parse_seconds(text):
@@ -270,16 +285,16 @@ def _render_player(src, accent, progress_pct, duration_text, is_live):
     # soft shadow under the card
     shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     sd = ImageDraw.Draw(shadow)
-    sd.rounded_rectangle((CARD_BOX[0], CARD_BOX[1] + 14, CARD_BOX[2], CARD_BOX[3] + 14), radius=CARD_R, fill=(0, 0, 0, 120))
+    _rrect(sd, (CARD_BOX[0], CARD_BOX[1] + 14, CARD_BOX[2], CARD_BOX[3] + 14), CARD_R, (0, 0, 0, 120))
     cx, cy = RING_C
     sd.ellipse((cx - RING_R, cy - RING_R + 14, cx + RING_R, cy + RING_R + 14), fill=(0, 0, 0, 90))
-    sd.rounded_rectangle((PILL_BOX[0], PILL_BOX[1] + 10, PILL_BOX[2], PILL_BOX[3] + 10), radius=46, fill=(0, 0, 0, 90))
+    _rrect(sd, (PILL_BOX[0], PILL_BOX[1] + 10, PILL_BOX[2], PILL_BOX[3] + 10), 46, (0, 0, 0, 90))
     bg = Image.alpha_composite(bg, shadow.filter(ImageFilter.GaussianBlur(22)))
 
     # ---- layer 1 (supersampled): card, ring body ----
     L = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
     d = ImageDraw.Draw(L)
-    d.rounded_rectangle([_s(v) for v in CARD_BOX], radius=_s(CARD_R), fill=glass)
+    _rrect(d, [_s(v) for v in CARD_BOX], _s(CARD_R), glass)
     d.ellipse((_s(cx - RING_R), _s(cy - RING_R), _s(cx + RING_R), _s(cy + RING_R)), fill=ring_col)
     inner = RING_R - RING_W
     d.ellipse((_s(cx - inner), _s(cy - inner), _s(cx + inner), _s(cy + inner)), fill=(255, 255, 255, 255))
@@ -303,22 +318,22 @@ def _render_player(src, accent, progress_pct, duration_text, is_live):
         by = cy + mid_r * math.sin(math.radians(ang))
         d.ellipse((_s(bx - 30), _s(by - 30), _s(bx + 30), _s(by + 30)), fill=badge_col)
         if kind == "heart":
-            _draw_heart(d, bx, by, 24)
+            _safe(_draw_heart, d, bx, by, 24)
         else:
-            _draw_wave_icon(d, bx, by)
+            _safe(_draw_wave_icon, d, bx, by)
 
-    _draw_airplay(d, 1072, 342, (*_gray(accent, 170), 255))
+    _safe(_draw_airplay, d, 1072, 342, (*_gray(accent, 170), 255))
 
     # progress bar
-    d.rounded_rectangle((_s(BAR_X0), _s(BAR_Y - 2), _s(BAR_X1), _s(BAR_Y + 2)), radius=_s(2), fill=(*_gray(accent, 150), 255))
+    _rrect(d, (_s(BAR_X0), _s(BAR_Y - 2), _s(BAR_X1), _s(BAR_Y + 2)), _s(2), (*_gray(accent, 150), 255))
     px = BAR_X0 + (BAR_X1 - BAR_X0) * (0 if is_live else progress_pct) / 100
     if is_live:
         px = BAR_X1
-    d.rounded_rectangle((_s(BAR_X0), _s(BAR_Y - 2), _s(px), _s(BAR_Y + 2)), radius=_s(2), fill=DARK)
+    _rrect(d, (_s(BAR_X0), _s(BAR_Y - 2), _s(max(px, BAR_X0 + 1)), _s(BAR_Y + 2)), _s(2), DARK)
     d.ellipse((_s(px - 8), _s(BAR_Y - 8), _s(px + 8), _s(BAR_Y + 8)), fill=DARK)
 
-    _draw_controls(d, 556)
-    _draw_pill(d, (*_gray(accent, 188), 250))
+    _safe(_draw_controls, d, 556)
+    _safe(_draw_pill, d, (*_gray(accent, 188), 250))
     bg = Image.alpha_composite(bg, L.resize((W, H), Image.LANCZOS))
     return bg
 
