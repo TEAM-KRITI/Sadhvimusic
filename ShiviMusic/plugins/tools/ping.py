@@ -15,6 +15,7 @@
 import random
 from datetime import datetime
 from pyrogram import filters
+from pyrogram.enums import ParseMode
 from pyrogram.types import Message
 from ShiviMusic import app
 from ShiviMusic.core.call import Shivi
@@ -40,13 +41,14 @@ async def ping_com(client, message: Message, _):
     start = datetime.now()
     response = await message.reply_photo(
         photo=random.choice(Shivi_PIC),
-        has_spoiler=True,
         caption=_["ping_1"].format(app.mention),
+        parse_mode=ParseMode.HTML,
     )
     pytgping = await Shivi.ping()
     UP, CPU, RAM, DISK = await bot_sys_stats()
     resp = (datetime.now() - start).microseconds / 1000
-    await response.edit_text(
+    await response.edit_caption(
         _["ping_2"].format(resp, app.mention, UP, RAM, CPU, DISK, pytgping),
+        parse_mode=ParseMode.HTML,
         reply_markup=supp_markup(_),
     )
