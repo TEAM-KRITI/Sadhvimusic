@@ -460,3 +460,54 @@ def welcomepic(pic, user, chatname, user_id, uname, joined=None):
     out = f"downloads/welcome_{user_id}.png"
     bg.convert("RGB").save(out)
     return out
+
+
+# -------------------------------------------------------
+# Simple fallback card (sirf basic PIL, numpy ke bina).
+# Neon card kisi bhi wajah se fail ho to ye use hota hai,
+# taaki welcome me image hamesha aaye.
+# -------------------------------------------------------
+
+def welcomepic_simple(pic, user, chatname, user_id, uname, joined=None):
+    c1, c2, c3 = _next_palette()
+    w, h = 1280, 640
+
+    bg = Image.new("RGB", (w, h), BG_TOP)
+    bd = ImageDraw.Draw(bg)
+    for y in range(h):
+        bd.line([(0, y), (w, y)], fill=_mix(BG_TOP, c1, 0.25 * y / h))
+
+    bd.rounded_rectangle((30, 30, w - 30, h - 30), radius=40, outline=c2, width=5)
+
+    # profile photo (circle + ring)
+    try:
+        photo = Image.open(pic).convert("RGB")
+    except Exception:
+        photo = Image.open(FALLBACK_PIC).convert("RGB")
+    r = 190
+    cx, cy = 290, h // 2
+    photo = ImageOps.fit(photo, (r * 2, r * 2), Image.LANCZOS)
+    mask = Image.new("L", (r * 2, r * 2), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, r * 2 - 1, r * 2 - 1), fill=255)
+    bd.ellipse((cx - r - 12, cy - r - 12, cx + r + 12, cy + r + 12), outline=c1, width=10)
+    bg.paste(photo, (cx - r, cy - r), mask)
+
+    d = ImageDraw.Draw(bg)
+    x0 = 560
+    d.text((x0, 120), "NEW MEMBER", font=_font(92), fill=c1, anchor="lm")
+    d.text((x0, 215), "WELCOME TO THE COMMUNITY", font=_font(32), fill=(238, 246, 255), anchor="lm")
+
+    chat_name = _safe(chatname, 22, "GROUP").upper()
+    d.text((x0, 300), "GROUP : ", font=_font(40), fill=(238, 244, 255), anchor="lm")
+    d.text((x0 + d.textlength("GROUP : ", font=_font(40)), 300), chat_name,
+           font=_fit_font(d, chat_name, 40, 480, 22), fill=c2, anchor="lm")
+
+    uname_txt = f"@{uname}" if uname else "NOT SET"
+    d.text((x0, 380), f"USERNAME : {uname_txt}", font=_fit_font(d, f"USERNAME : {uname_txt}", 36, 640, 20), fill=WHITE, anchor="lm")
+    d.text((x0, 445), f"USER ID : {user_id}", font=_font(36), fill=WHITE, anchor="lm")
+    d.text((x0, 510), "STATUS : VERIFIED MEMBER", font=_font(36), fill=c3, anchor="lm")
+
+    os.makedirs("downloads", exist_ok=True)
+    out = f"downloads/welcome_{user_id}.png"
+    bg.save(out)
+    return out
