@@ -219,7 +219,7 @@ def circle(
 # Generator: ShiviMusic/utils/welcome_card.py
 # =======================================================
 
-from ShiviMusic.utils.welcome_card import welcomepic  # noqa: E402
+from ShiviMusic.utils.welcome_card import welcomepic, welcomepic_simple  # noqa: E402
 
 
 # =======================================================
@@ -548,19 +548,22 @@ async def _send_welcome(chat, user):
         # welcome image (blocking PIL work -> executor)
         loop = asyncio.get_running_loop()
 
-        try:
-            welcomeimg = await loop.run_in_executor(
-                None,
-                welcomepic,
-                pic,
-                user,
-                chat.title or "Group",
-                user.id,
-                user.username,
-            )
-        except Exception as e:
-            LOGGER.warning(f"[WELCOME] image generate failed: {type(e).__name__}: {e}")
-            welcomeimg = None
+        welcomeimg = None
+
+        for gen in (welcomepic, welcomepic_simple):
+            try:
+                welcomeimg = await loop.run_in_executor(
+                    None,
+                    gen,
+                    pic,
+                    user,
+                    chat.title or "Group",
+                    user.id,
+                    user.username,
+                )
+                break
+            except Exception:
+                LOGGER.exception(f"[WELCOME] {gen.__name__} failed")
 
         caption = welcome_caption(user, chat.title or "Group")
 
@@ -591,8 +594,31 @@ async def _send_welcome(chat, user):
                     parse_mode=enums.ParseMode.HTML,
                     reply_markup=markup,
                 )
-            except Exception as e:
-                LOGGER.warning(f"[WELCOME] photo send failed: {e}")
+            except Exception:
+                LOGGER.exception("[WELCOME] send_photo (png) failed")
+
+                try:
+                    from PIL import Image as _Img
+
+                    jpg = welcomeimg.rsplit(".", 1)[0] + ".jpg"
+                    _Img.open(welcomeimg).convert("RGB").save(jpg, quality=92)
+
+                    try:
+                        msg = await app.send_photo(
+                            chat_id=chat_id,
+                            photo=jpg,
+                            caption=caption,
+                            parse_mode=enums.ParseMode.HTML,
+                            reply_markup=markup,
+                        )
+                    finally:
+                        try:
+                            os.remove(jpg)
+                        except Exception:
+                            pass
+
+                except Exception:
+                    LOGGER.exception("[WELCOME] send_photo (jpg) failed")
 
         if msg is None:
             # fallback: text-only welcome
