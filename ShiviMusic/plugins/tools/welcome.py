@@ -11,6 +11,7 @@
 import asyncio
 import html
 import os
+import time
 import unicodedata
 from datetime import datetime
 from logging import getLogger
@@ -465,167 +466,136 @@ def _is_new_join(
 
 # =======================================================
 # NEW MEMBER GREETING
+#
+# Welcome 2 raston se trigger hota hai:
+#   1) chat_member update  (sirf tab aata hai jab bot ADMIN ho)
+#   2) "user joined" service message (admin ke bina bhi aata hai)
+# Dono ek hi function chalate hain; dedupe ki wajah se
+# ek join par welcome sirf ek baar jaata hai.
 # =======================================================
 
-@app.on_chat_member_updated(
-    filters.group,
-    group=-3,
-)
-async def greet_new_member(
-    _,
-    member: ChatMemberUpdated,
-):
+_RECENT = {}          # (chat_id, user_id) -> time
+_RECENT_TTL = 30      # seconds
 
+
+def _already_welcomed(chat_id: int, user_id: int) -> bool:
+    now = time.time()
+
+    for key in [k for k, t in _RECENT.items() if now - t > _RECENT_TTL]:
+        _RECENT.pop(key, None)
+
+    key = (chat_id, user_id)
+
+    if key in _RECENT:
+        return True
+
+    _RECENT[key] = now
+    return False
+
+
+async def _download_pfp(user):
+    """Profile photo download. Na mile to FALLBACK_PIC."""
+    try:
+        photo = user.photo
+
+        if not photo:
+            # chat_member / service updates me photo aksar nahi aati
+            full = await app.get_chat(user.id)
+            photo = getattr(full, "photo", None)
+
+        if photo:
+            path = await app.download_media(
+                photo.big_file_id,
+                file_name=f"pp_{user.id}.png",
+            )
+
+            if path and os.path.exists(path):
+                return path
+
+    except Exception as e:
+        LOGGER.info(f"[WELCOME] pfp download failed: {e}")
+
+    return FALLBACK_PIC
+
+
+async def _send_welcome(chat, user):
     pic = None
     welcomeimg = None
 
     try:
-
-        chat_id = member.chat.id
-
-        # ------------------------------------------------
-        # Welcome disabled?
-        # ------------------------------------------------
-
-        if not await get_welcome(
-            chat_id
-        ):
-            return
-
-        # ------------------------------------------------
-        # Not a new member?
-        # ------------------------------------------------
-
-        if not _is_new_join(
-            member
-        ):
-            return
-
-        user = member.new_chat_member.user
-
-        # ------------------------------------------------
-        # Ignore bots
-        # ------------------------------------------------
+        chat_id = chat.id
 
         if user.is_bot:
             return
 
-        # ------------------------------------------------
-        # Download profile photo
-        # ------------------------------------------------
+        if not await get_welcome(chat_id):
+            return
 
-        try:
+        if _already_welcomed(chat_id, user.id):
+            return
 
-            if user.photo:
+        pic = await _download_pfp(user)
 
-                pic = await app.download_media(
-                    user.photo.big_file_id,
-                    file_name=f"pp_{user.id}.png",
-                )
-
-            else:
-
-                pic = FALLBACK_PIC
-
-        except Exception:
-
-            pic = FALLBACK_PIC
-
-        # ------------------------------------------------
-        # Delete previous welcome
-        # ------------------------------------------------
-
-        old = temp.MELCOW.pop(
-            f"welcome-{chat_id}",
-            None,
-        )
+        # previous welcome delete
+        old = temp.MELCOW.pop(f"welcome-{chat_id}", None)
 
         if old:
-
             try:
                 await old.delete()
-
             except Exception:
                 pass
 
-        # ------------------------------------------------
-        # Generate Welcome Image
-        # ------------------------------------------------
-
+        # welcome image (blocking PIL work -> executor)
         loop = asyncio.get_running_loop()
 
-        welcomeimg = await loop.run_in_executor(
-            None,
-            welcomepic,
-            pic,
-            user,
-            member.chat.title or "Group",
-            user.id,
-            user.username,
-        )
+        try:
+            welcomeimg = await loop.run_in_executor(
+                None,
+                welcomepic,
+                pic,
+                user,
+                chat.title or "Group",
+                user.id,
+                user.username,
+            )
+        except Exception as e:
+            LOGGER.warning(f"[WELCOME] image generate failed: {type(e).__name__}: {e}")
+            welcomeimg = None
 
-        # ------------------------------------------------
-        # Caption
-        # ------------------------------------------------
+        caption = welcome_caption(user, chat.title or "Group")
 
-        caption = welcome_caption(
-            user,
-            member.chat.title or "Group",
-        )
-
-        # ------------------------------------------------
-        # Button
-        # ------------------------------------------------
-
-        bot_username = getattr(
-            app,
-            "username",
-            None,
-        )
+        bot_username = getattr(app, "username", None)
 
         markup = None
 
         if bot_username:
-
             markup = InlineKeyboardMarkup(
                 [
                     [
                         InlineKeyboardButton(
                             "⊚ ᴧᴅᴅ ᴍᴇ ᴛᴏ ʏᴏυʀ ᴄʜᴧᴛ ⊚",
-                            url=(
-                                f"https://t.me/"
-                                f"{bot_username}"
-                                f"?startgroup=true"
-                            ),
+                            url=f"https://t.me/{bot_username}?startgroup=true",
                         )
                     ]
                 ]
             )
 
-        # ------------------------------------------------
-        # Send Welcome Photo
-        # ------------------------------------------------
+        msg = None
 
-        try:
+        if welcomeimg:
+            try:
+                msg = await app.send_photo(
+                    chat_id=chat_id,
+                    photo=welcomeimg,
+                    caption=caption,
+                    parse_mode=enums.ParseMode.HTML,
+                    reply_markup=markup,
+                )
+            except Exception as e:
+                LOGGER.warning(f"[WELCOME] photo send failed: {e}")
 
-            msg = await app.send_photo(
-                chat_id=chat_id,
-                photo=welcomeimg,
-                caption=caption,
-                parse_mode=enums.ParseMode.HTML,
-                reply_markup=markup,
-            )
-
-        except Exception as e:
-
-            LOGGER.warning(
-                f"[WELCOME] photo send failed: {e}"
-            )
-
-            # --------------------------------------------
-            # Fallback Text Message
-            # --------------------------------------------
-
+        if msg is None:
+            # fallback: text-only welcome
             msg = await app.send_message(
                 chat_id=chat_id,
                 text=caption,
@@ -634,81 +604,54 @@ async def greet_new_member(
                 disable_web_page_preview=True,
             )
 
-        # ------------------------------------------------
-        # Store Message
-        # ------------------------------------------------
-
-        temp.MELCOW[
-            f"welcome-{chat_id}"
-        ] = msg
-
-        # ------------------------------------------------
-        # Auto Delete After 130 Seconds
-        # ------------------------------------------------
+        temp.MELCOW[f"welcome-{chat_id}"] = msg
 
         async def delete_welcome():
-
-            await asyncio.sleep(
-                130
-            )
+            await asyncio.sleep(130)
 
             try:
-
                 await msg.delete()
-
             except Exception:
                 pass
 
-            if (
-                temp.MELCOW.get(
-                    f"welcome-{chat_id}"
-                )
-                is msg
-            ):
+            if temp.MELCOW.get(f"welcome-{chat_id}") is msg:
+                temp.MELCOW.pop(f"welcome-{chat_id}", None)
 
-                temp.MELCOW.pop(
-                    f"welcome-{chat_id}",
-                    None,
-                )
-
-        asyncio.create_task(
-            delete_welcome()
-        )
+        asyncio.create_task(delete_welcome())
 
     except Exception as e:
-
-        LOGGER.warning(
-            f"[WELCOME ERROR] "
-            f"{type(e).__name__}: {e}"
-        )
+        LOGGER.warning(f"[WELCOME ERROR] {type(e).__name__}: {e}")
 
     finally:
-
-        # ------------------------------------------------
-        # Cleanup generated/downloaded files
-        # ------------------------------------------------
-
-        for file_path in (
-            welcomeimg,
-            pic,
-        ):
-
-            if (
-                file_path
-                and file_path != FALLBACK_PIC
-            ):
-
+        for file_path in (welcomeimg, pic):
+            if file_path and file_path != FALLBACK_PIC:
                 try:
-
-                    if os.path.exists(
-                        file_path
-                    ):
-                        os.remove(
-                            file_path
-                        )
-
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
                 except Exception:
                     pass
+
+
+@app.on_chat_member_updated(filters.group, group=-3)
+async def greet_new_member(_, member: ChatMemberUpdated):
+    try:
+        if not _is_new_join(member):
+            return
+
+        await _send_welcome(member.chat, member.new_chat_member.user)
+
+    except Exception as e:
+        LOGGER.warning(f"[WELCOME] member update error: {type(e).__name__}: {e}")
+
+
+@app.on_message(filters.new_chat_members & filters.group, group=-3)
+async def greet_new_member_msg(_, message: Message):
+    try:
+        for user in message.new_chat_members or []:
+            await _send_welcome(message.chat, user)
+
+    except Exception as e:
+        LOGGER.warning(f"[WELCOME] service msg error: {type(e).__name__}: {e}")
 
 
 # =======================================================
