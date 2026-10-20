@@ -11,8 +11,8 @@ from config import YOUTUBE_IMG_URL
 
 # ───────────────────────── Fonts (same as reference thumbnail) ─────────────────────────
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
-FONT_TITLE = os.path.join(_ASSETS, "f.ttf")       # reference font -> title, channel line, times
-FONT_INFO  = os.path.join(_ASSETS, "font.ttf")    # Poppins SB -> credits + Hindi (Devanagari) text
+FONT_TITLE = os.path.join(_ASSETS, "fonts.ttf")   # Boogaloo   -> song title (English)
+FONT_INFO  = os.path.join(_ASSETS, "font.ttf")    # Poppins SB -> info line, credits + Hindi title text
 
 # ───────────────────────── Text shown on the thumbnail ─────────────────────────
 DEV_TEXT    = "Dev :- @kirti_bots"     # top-right
@@ -23,15 +23,20 @@ CREDIT_COLOR = (255, 241, 0)           # yellow
 CACHE_DIR = "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-# ───────────────────────── Layout ─────────────────────────
+# ───────────────────────── Layout (iPhone music-player card) ─────────────────────────
 W, H = 1280, 720
-FRAME_BOX = (186, 88, 1094, 566)       # outer coloured border
-FRAME_W   = 33                         # border thickness
-IMG_BOX   = (FRAME_BOX[0] + FRAME_W, FRAME_BOX[1] + FRAME_W,
-             FRAME_BOX[2] - FRAME_W, FRAME_BOX[3] - FRAME_W)   # 842 x 412 photo area
-TITLE_Y   = 580
-INFO_Y    = 625
-MAX_TITLE_WIDTH = 660
+SS = 2                                  # supersampling for smooth shapes
+CARD = (130, 76, 1150, 647)             # glass player card
+CARD_R = 66
+_K = (CARD[2] - CARD[0]) / 621.0        # scale from the reference template
+
+def _X(x): return CARD[0] + (x - 46) * _K
+def _Y(y): return CARD[1] + (y - 30) * _K
+
+ART_BOX = tuple(int(v) for v in (_X(70), _Y(62), _X(363), _Y(345)))
+TXT_X   = int(_X(395))
+BAR_X0, BAR_X1 = int(_X(395)), int(_X(631))
+MAX_TITLE_WIDTH = BAR_X1 - TXT_X
 
 DIRECT_THUMB_FALLBACK = "https://i.ytimg.com/vi/{videoid}/hqdefault.jpg"
 
@@ -52,6 +57,14 @@ def _next_accent():
             break
     _last_hue = hue
     r, g, b = colorsys.hsv_to_rgb(hue, random.uniform(0.45, 0.8), random.uniform(0.85, 1.0))
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def _accent2(accent):
+    """Second colour of the wash: hue shifted from the accent (also new every time)."""
+    r, g, b = [v / 255 for v in accent]
+    h, sat, v = colorsys.rgb_to_hsv(r, g, b)
+    r, g, b = colorsys.hsv_to_rgb((h + random.choice((0.12, 0.18, -0.12, -0.18))) % 1.0, min(1, sat + 0.1), v * 0.75)
     return int(r * 255), int(g * 255), int(b * 255)
 
 
@@ -132,128 +145,157 @@ def _draw_centered(draw, y, text, font, fill, shadow=True):
     draw.text((x, y), text, font=font, fill=fill)
 
 
-def _draw_frame(bg, accent):
-    """Soft glowing picture-frame in the accent colour."""
-    x0, y0, x1, y1 = FRAME_BOX
-
-    glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    ImageDraw.Draw(glow).rectangle((x0 - 6, y0 - 6, x1 + 6, y1 + 6), fill=(*accent, 150))
-    glow = glow.filter(ImageFilter.GaussianBlur(18))
-    bg = Image.alpha_composite(bg, glow)
-
-    frame = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    fd = ImageDraw.Draw(frame)
-    light = _mix(accent, (255, 255, 255), 0.35)
-    dark = _mix(accent, (0, 0, 0), 0.35)
-    # outer edge -> middle (light) -> inner edge (dark): gives the bevelled look
-    for i in range(FRAME_W):
-        t = i / (FRAME_W - 1)
-        col = _mix(dark, light, t * 2) if t < 0.5 else _mix(light, dark, (t - 0.5) * 2)
-        fd.rectangle((x0 + i, y0 + i, x1 - i, y1 - i), outline=(*col, 235), width=1)
-    frame = frame.filter(ImageFilter.GaussianBlur(1.2))
-    return Image.alpha_composite(bg, frame)
+def _rr_mask(box, radius, size=(W, H)):
+    """Smooth (supersampled) rounded-rectangle mask."""
+    m = Image.new("L", (size[0] * SS, size[1] * SS), 0)
+    ImageDraw.Draw(m).rounded_rectangle([v * SS for v in box], radius=radius * SS, fill=255)
+    return m.resize(size, Image.LANCZOS)
 
 
-# ───────────────────────── Glass player-card design ─────────────────────────
-CARD_BOX = (142, 212, 1138, 508)
-CARD_R   = 34
-ART_C    = (290, 360)
-ART_R    = 100
-TEXT_X   = 430
-BAR_X0, BAR_X1, BAR_Y = 475, 875, 400
-WHITE = (255, 255, 255)
+def _draw_player(bg, accent, accent2, src, title, sub, label, t_left, t_right, progress):
+    """iPhone-style 'now playing' card. Colours come from accent/accent2 (new every call)."""
+    # ---- background: blurred cover + colour wash (changes every time) ----
+    wash = Image.new("RGBA", (W, H))
+    wd = ImageDraw.Draw(wash)
+    for y in range(H):
+        t = y / (H - 1)
+        wd.line([(0, y), (W, y)], fill=(*_mix(accent, accent2, t), 150))
+    bg = Image.alpha_composite(bg, wash)
 
+    # ---- card shadow ----
+    cm = _rr_mask(CARD, CARD_R)
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    shadow.putalpha(cm.filter(ImageFilter.GaussianBlur(26)).point(lambda v: int(v * 0.55)))
+    sh2 = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sh2.paste(shadow, (0, 16))
+    bg = Image.alpha_composite(bg, sh2)
 
-def _rrect(d, box, radius, fill=None, outline=None, width=1):
-    try:
-        d.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
-    except Exception:
-        d.rectangle(box, fill=fill, outline=outline, width=width)
+    # ---- frosted glass card ----
+    glass = bg.filter(ImageFilter.GaussianBlur(28))
+    tint = Image.new("RGBA", (W, H), (*_mix(accent, (20, 20, 28), 0.55), 120))
+    glass = Image.alpha_composite(glass, tint)
+    bg.paste(glass, (0, 0), cm)
 
+    # ---- everything shape-like drawn at 2x then downsampled ----
+    ov = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
+    od = ImageDraw.Draw(ov)
 
-def _parse_seconds(text):
-    try:
-        sec = 0
-        for p in str(text).split(":"):
-            sec = sec * 60 + int(p)
-        return sec
-    except Exception:
-        return 0
+    def S(v): return int(v * SS)
 
+    od.rounded_rectangle([S(v) for v in CARD], radius=S(CARD_R), outline=(255, 255, 255, 70), width=S(2))
 
-def _fmt(sec):
-    sec = max(0, int(sec))
-    h, rem = divmod(sec, 3600)
-    m, sc = divmod(rem, 60)
-    return f"{h}:{m:02d}:{sc:02d}" if h else f"{m}:{sc:02d}"
+    white = (255, 255, 255, 255)
+    soft = (255, 255, 255, 105)
 
+    # progress bar
+    by = int(_Y(170))
+    od.rounded_rectangle([S(BAR_X0), S(by - 3), S(BAR_X1), S(by + 3)], radius=S(3), fill=soft)
+    px = BAR_X0 + (BAR_X1 - BAR_X0) * max(0.0, min(1.0, progress))
+    od.rounded_rectangle([S(BAR_X0), S(by - 3), S(px), S(by + 3)], radius=S(3), fill=white)
+    od.ellipse([S(px - 8), S(by - 8), S(px + 8), S(by + 8)], fill=white)
 
-def _render_card(src, pct, is_live):
-    """Song's own art, blurred, as background + clear frosted glass card + round art + bar."""
-    bg = ImageOps.fit(src, (W, H), Image.LANCZOS).filter(ImageFilter.GaussianBlur(22))
-    bg = ImageEnhance.Color(bg).enhance(1.08)
-    bg = Image.alpha_composite(bg, Image.new("RGBA", (W, H), (0, 0, 0, 22)))
+    # controls: prev / pause / next
+    cy = int(_Y(226))
+    cx = (BAR_X0 + BAR_X1) // 2
+    off = 138
+    ih = 24
+    # pause
+    for dx in (-17, 6):
+        od.rounded_rectangle([S(cx + dx), S(cy - 30), S(cx + dx + 12), S(cy + 30)], radius=S(3), fill=white)
+    # prev  |◀◀
+    for base in (cx - off - 22, cx - off + 2):
+        od.polygon([(S(base + 24), S(cy - ih)), (S(base + 24), S(cy + ih)), (S(base), S(cy))], fill=white)
+    # next  ▶▶|
+    for base in (cx + off - 4, cx + off + 20):
+        od.polygon([(S(base), S(cy - ih)), (S(base), S(cy + ih)), (S(base + 24), S(cy))], fill=white)
 
-    x0, y0, x1, y1 = CARD_BOX
-    cw, ch = x1 - x0, y1 - y0
+    # volume row
+    vy = int(_Y(287))
+    vx0, vx1 = int(_X(409)), int(_X(607))
+    od.rounded_rectangle([S(vx0), S(vy - 3), S(vx1), S(vy + 3)], radius=S(3), fill=soft)
+    vk = vx0 + (vx1 - vx0) * 0.88
+    od.rounded_rectangle([S(vx0), S(vy - 3), S(vk), S(vy + 3)], radius=S(3), fill=white)
+    od.ellipse([S(vk - 7), S(vy - 7), S(vk + 7), S(vy + 7)], fill=white)
+    # speaker icons
+    sx = TXT_X + 2
+    od.polygon([(S(sx), S(vy - 4)), (S(sx + 6), S(vy - 4)), (S(sx + 13), S(vy - 10)), (S(sx + 13), S(vy + 10)), (S(sx + 6), S(vy + 4)), (S(sx), S(vy + 4))], fill=soft)
+    sx = BAR_X1 + 20
+    od.polygon([(S(sx - 14), S(vy - 4)), (S(sx - 8), S(vy - 4)), (S(sx - 1), S(vy - 10)), (S(sx - 1), S(vy + 10)), (S(sx - 8), S(vy + 4)), (S(sx - 14), S(vy + 4))], fill=white)
+    for r in (8, 14):
+        od.arc([S(sx - 3 - r), S(vy - r), S(sx - 3 + r), S(vy + r)], -50, 50, fill=white, width=S(2.5))
 
-    # glass : slightly more blurred copy of the background, a touch lighter, clipped to the rounded card
-    glass = bg.crop(CARD_BOX).filter(ImageFilter.GaussianBlur(10))
-    glass = Image.alpha_composite(glass, Image.new("RGBA", (cw, ch), (255, 255, 255, 40)))
-    m = Image.new("L", (cw * 3, ch * 3), 0)
-    _rrect(ImageDraw.Draw(m), (0, 0, cw * 3 - 1, ch * 3 - 1), CARD_R * 3, fill=255)
-    m = m.resize((cw, ch), Image.LANCZOS)
-    bg.paste(glass, (x0, y0), m)
+    # AirPlay-style icon (top-right of text column)
+    ax, ay = BAR_X1 - 8, int(_Y(100))
+    od.arc([S(ax - 16), S(ay - 16), S(ax + 16), S(ay + 16)], 150, 390, fill=white, width=S(3))
+    od.arc([S(ax - 9), S(ay - 9), S(ax + 9), S(ay + 9)], 150, 390, fill=white, width=S(3))
+    od.polygon([(S(ax), S(ay + 1)), (S(ax - 9), S(ay + 17)), (S(ax + 9), S(ay + 17))], fill=white)
 
-    # thin light border (supersampled -> smooth corners)
-    S = 3
-    L = Image.new("RGBA", (cw * S, ch * S), (0, 0, 0, 0))
-    ld = ImageDraw.Draw(L)
-    _rrect(ld, (0, 0, cw * S - 1, ch * S - 1), CARD_R * S, outline=(255, 255, 255, 120), width=2 * S)
-    _rrect(ld, (2 * S, 2 * S, cw * S - 1 - 2 * S, ch * S - 1 - 2 * S), (CARD_R - 2) * S, outline=(255, 255, 255, 35), width=S)
-    bg.alpha_composite(L.resize((cw, ch), Image.LANCZOS), (x0, y0))
+    # home indicator
+    hy = int(_Y(357))
+    od.rounded_rectangle([S(_X(467)), S(hy - 3), S(_X(571)), S(hy + 3)], radius=S(3), fill=(255, 255, 255, 200))
 
-    # round album art
-    d_art = ART_R * 2
-    art = ImageOps.fit(src, (d_art, d_art), Image.LANCZOS)
-    cm = Image.new("L", (d_art * 4, d_art * 4), 0)
-    ImageDraw.Draw(cm).ellipse((0, 0, d_art * 4 - 1, d_art * 4 - 1), fill=255)
-    cm = cm.resize((d_art, d_art), Image.LANCZOS)
-    bg.paste(art, (ART_C[0] - ART_R, ART_C[1] - ART_R), cm)
+    ov = ov.resize((W, H), Image.LANCZOS)
+    bg = Image.alpha_composite(bg, ov)
 
-    # progress bar (supersampled)
-    L = Image.new("RGBA", (W * 2, H * 2), (0, 0, 0, 0))
-    ld = ImageDraw.Draw(L)
-    _rrect(ld, (BAR_X0 * 2, (BAR_Y - 3) * 2, BAR_X1 * 2, (BAR_Y + 3) * 2), 6, fill=(255, 255, 255, 115))
-    px = BAR_X1 if is_live else BAR_X0 + (BAR_X1 - BAR_X0) * pct / 100
-    _rrect(ld, (BAR_X0 * 2, (BAR_Y - 3) * 2, max(px, BAR_X0 + 6) * 2, (BAR_Y + 3) * 2), 6, fill=(255, 255, 255, 250))
-    bg = Image.alpha_composite(bg, L.resize((W, H), Image.LANCZOS))
+    # ---- album art (rounded, with shadow) ----
+    ax0, ay0, ax1, ay1 = ART_BOX
+    am = _rr_mask(ART_BOX, 38)
+    ash = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ash.putalpha(am.filter(ImageFilter.GaussianBlur(14)).point(lambda v: int(v * 0.5)))
+    ash2 = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ash2.paste(ash, (0, 8))
+    bg = Image.alpha_composite(bg, ash2)
+    art = ImageOps.fit(src, (ax1 - ax0, ay1 - ay0), Image.LANCZOS)
+    art = ImageEnhance.Brightness(art).enhance(1.04)
+    bg.paste(art, (ax0, ay0), am.crop((ax0, ay0, ax1, ay1)))
+
+    # ---- text ----
+    draw = ImageDraw.Draw(bg)
+    f_label = ImageFont.truetype(FONT_INFO, 27)
+    f_title = ImageFont.truetype(FONT_INFO, 31)
+    f_hi    = ImageFont.truetype(FONT_INFO, 28)
+    f_sub   = ImageFont.truetype(FONT_INFO, 26)
+    f_time  = ImageFont.truetype(FONT_INFO, 20)
+
+    # label (device name spot)
+    draw.text((TXT_X, _Y(95)), label, font=f_label, fill=white, anchor="lm")
+
+    # title (Latin + Hindi runs)
+    title = _clean_title(title) or "Now Playing"
+    title = trim_text(title, f_title, f_hi, MAX_TITLE_WIDTH)
+    x = TXT_X
+    for f, t in _segments(title, f_title, f_hi):
+        draw.text((x, _Y(116) + 6), t, font=f, fill=(255, 255, 255, 235), anchor="lm")
+        x += f.getlength(t)
+
+    # artist — views
+    sub = _clean_title(sub)
+    sub = trim_text(sub, f_sub, f_hi, MAX_TITLE_WIDTH)
+    draw.text((TXT_X, _Y(138) + 8), sub, font=f_sub, fill=(255, 255, 255, 190), anchor="lm")
+
+    # times
+    ty = _Y(182)
+    draw.text((BAR_X0, ty), t_left, font=f_time, fill=(255, 255, 255, 200), anchor="lm")
+    draw.text((BAR_X1, ty), t_right, font=f_time, fill=(255, 255, 255, 200), anchor="rm")
     return bg
 
 
-_SMALL_CAPS = {
-    "ᴀ": "A", "ʙ": "B", "ᴄ": "C", "ᴅ": "D", "ᴇ": "E", "ꜰ": "F", "ɢ": "G", "ʜ": "H",
-    "ɪ": "I", "ᴊ": "J", "ᴋ": "K", "ʟ": "L", "ᴍ": "M", "ɴ": "N", "ᴏ": "O", "ᴘ": "P",
-    "ǫ": "Q", "ʀ": "R", "ꜱ": "S", "ᴛ": "T", "ᴜ": "U", "ᴠ": "V", "ᴡ": "W", "ʏ": "Y",
-    "ᴢ": "Z", "ᴧ": "A",
-}
+def _to_seconds(text):
+    try:
+        parts = [int(p) for p in str(text).split(":")]
+    except Exception:
+        return 0
+    sec = 0
+    for p in parts:
+        sec = sec * 60 + p
+    return sec
 
 
-def _plain_name(raw):
-    """'[Name](tg://user?id=1)' / '<a ..>Name</a>' / fancy-font name -> clean plain Name."""
-    import unicodedata
-    raw = str(raw or "").strip()
-    if not raw:
-        return ""
-    if "ᴧᴜᴛᴏ" in raw:                       # autoplay marker used by the bot
-        return "Autoplay"
-    m = re.match(r"^\[(.+?)\]\(.*\)$", raw, re.S)
-    if m:
-        raw = m.group(1)
-    raw = re.sub(r"<[^>]+>", "", raw)
-    raw = "".join(_SMALL_CAPS.get(ch, ch) for ch in raw)
-    raw = unicodedata.normalize("NFKC", raw)
-    return _clean_title(raw)
+def _fmt_time(sec):
+    sec = int(sec)
+    h, rem = divmod(sec, 3600)
+    m, s_ = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s_:02d}" if h else f"{m}:{s_:02d}"
 
 
 async def _fetch_meta_via_search(videoid: str):
@@ -297,7 +339,8 @@ async def _fetch_title_via_oembed(videoid: str):
     return None
 
 
-async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = True, user_name: str = "") -> str:
+async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = True, user_name: str = "Badnam") -> str:
+    # user_name is kept only so existing callers don't break.
     print(f"📥 get_thumb called with videoid: {videoid}")
 
     timestamp = int(time.time() * 1000)
@@ -342,62 +385,27 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
     try:
         src = Image.open(thumb_path).convert("RGBA")
 
-        pct = progress_percent if 0 < progress_percent < 100 else 25   # 25 % = same look as reference
-        total = 0 if is_live else _parse_seconds(duration_text)
-        bg = _render_card(src, pct, is_live)
-        draw = ImageDraw.Draw(bg)
+        # blurred, darkened background from the song cover
+        bg = ImageOps.fit(src, (W, H), Image.LANCZOS)
+        bg = bg.filter(ImageFilter.GaussianBlur(40))
+        bg = Image.alpha_composite(bg, Image.new("RGBA", (W, H), (0, 0, 0, 120)))
 
-        title_font  = ImageFont.truetype(FONT_TITLE, 46)
-        hindi_font  = ImageFont.truetype(FONT_INFO, 36)
-        sub_font    = ImageFont.truetype(FONT_TITLE, 27)
-        time_font   = ImageFont.truetype(FONT_TITLE, 23)
-        credit_font = ImageFont.truetype(FONT_INFO, 24)
-        owner_font  = ImageFont.truetype(FONT_INFO, 25)
+        accent2 = _accent2(accent)
+        sub = f"{channel} — {views_text}"
+        pct = max(0, min(100, int(progress_percent or 0))) / 100.0
+        total_s = _to_seconds(duration_text)
+        t_left = _fmt_time(total_s * pct) if total_s else "0:00"
+        t_right = duration_text
 
-        # title (white, left aligned next to the round art)
-        title = _clean_title(title) or "Now Playing"
-        title = trim_text(title, title_font, hindi_font, MAX_TITLE_WIDTH)
-        x = TEXT_X
-        for f, t in _segments(title, title_font, hindi_font):
-            draw.text((x + 1, 312 + 1), t, font=f, fill=(0, 0, 0, 70), anchor="ls")
-            draw.text((x, 312), t, font=f, fill="white", anchor="ls")
-            x += f.getlength(t)
-
-        # channel · views (soft white)
-        channel_txt = _clean_title(channel) or "YouTube"
-        sub = trim_text(f"{channel_txt} \u00b7 {views_text}", sub_font, hindi_font, MAX_TITLE_WIDTH)
-        x = TEXT_X
-        for f, t in _segments(sub, sub_font, hindi_font):
-            draw.text((x + 1, 348), t, font=f, fill=(0, 0, 0, 80), anchor="ls")
-            draw.text((x, 347), t, font=f, fill=(244, 244, 244, 235), anchor="ls")
-            x += f.getlength(t)
-
-        # times around the progress bar
-        if is_live:
-            left_t, right_t = "LIVE", ""
-        else:
-            left_t, right_t = _fmt(total * pct / 100 if progress_percent else 0), _fmt(total)
-        draw.text((TEXT_X + 1, BAR_Y + 9), left_t, font=time_font, fill=(0, 0, 0, 80), anchor="ls")
-        draw.text((TEXT_X, BAR_Y + 8), left_t, font=time_font, fill="white", anchor="ls")
-        if right_t:
-            draw.text((BAR_X1 + 12, BAR_Y + 9), right_t, font=time_font, fill=(0, 0, 0, 80), anchor="ls")
-            draw.text((BAR_X1 + 11, BAR_Y + 8), right_t, font=time_font, fill="white", anchor="ls")
-
-        # requested by <name> (inside the card, under the progress bar)
-        req_name = _plain_name(user_name)
-        if req_name:
-            label = "Requested by : "
-            lab_w = sub_font.getlength(label)
-            name = trim_text(req_name, sub_font, hindi_font, MAX_TITLE_WIDTH - lab_w)
-            draw.text((TEXT_X + 1, 463), label, font=sub_font, fill=(0, 0, 0, 80), anchor="ls")
-            draw.text((TEXT_X, 462), label, font=sub_font, fill=(244, 244, 244, 235), anchor="ls")
-            x = TEXT_X + lab_w
-            for f, t in _segments(name, sub_font, hindi_font):
-                draw.text((x + 1, 463), t, font=f, fill=(0, 0, 0, 80), anchor="ls")
-                draw.text((x, 462), t, font=f, fill="white", anchor="ls")
-                x += f.getlength(t)
+        bg = _draw_player(
+            bg, accent, accent2, src, title, sub, PLAYER_TEXT,
+            t_left, t_right, pct if total_s else 0.0,
+        )
 
         # credits (fixed yellow)
+        draw = ImageDraw.Draw(bg)
+        credit_font = ImageFont.truetype(FONT_INFO, 24)
+        owner_font  = ImageFont.truetype(FONT_INFO, 25)
         dw = credit_font.getlength(DEV_TEXT)
         draw.text((W - 25 - dw + 1, 30 + 1), DEV_TEXT, font=credit_font, fill=(0, 0, 0, 140))
         draw.text((W - 25 - dw, 30), DEV_TEXT, font=credit_font, fill=CREDIT_COLOR)
@@ -405,7 +413,7 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
         draw.text((25, 672), OWNER_TEXT, font=owner_font, fill=CREDIT_COLOR)
 
         bg.convert("RGB").save(cache_path, "PNG")
-        print("✓ Glass-card thumbnail saved")
+        print(f"✓ Thumbnail saved with colour RGB{accent}")
 
     except Exception as e:
         import traceback
