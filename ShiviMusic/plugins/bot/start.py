@@ -259,22 +259,14 @@ async def join_request_welcome(
         group_title = request.chat.title or "this group"
 
         caption = (
-            f"<b>𝐖꯭ᴇ꯭ʟ꯭ᴄ꯭ᴏ꯭ᴍ꯭ᴇ, "
-            f"{user.mention} 🇮🇳</b>\n\n"
-
-            f"𝐘꯭ᴏ꯭ᴜ꯭ʀ ꯭༭꯭ 𝐑꯭ᴇ꯭ǫ꯭ᴜ꯭ᴇ꯭s꯭ᴛ ꯭༭꯭ "
-            f"ᴛᴏ ᴊᴏɪɴ "
-            f"<b>{group_title}</b> "
-            f"ʜᴀs ʙᴇᴇɴ ʀᴇᴄᴇɪᴠᴇᴅ. ✅\n\n"
-
-            f"𝐖꯭ʜ꯭ɪ꯭ʟ꯭ᴇ ꯭༭꯭ 𝐘꯭ᴏ꯭ᴜ ꯭༭꯭ 𝐖꯭ᴀ꯭ɪ꯭ᴛ, "
-            f"ᴇxᴘʟᴏʀᴇ — <b>{app.mention}</b> 🎶\n\n"
-
-            f"• 𝐇꯭ɪ꯭ɢ꯭ʜ ꯭༭꯭ 𝐐꯭ᴜ꯭ᴀ꯭ʟ꯭ɪ꯭ᴛ꯭ʏ ꯭༭꯭ 𝐌꯭ᴜ꯭s꯭ɪ꯭ᴄ\n"
-            f"• 𝐅꯭ᴀ꯭s꯭ᴛ ꯭༭꯭ & ꯭༭꯭ 𝐒꯭ᴍ꯭ᴏ꯭ᴏ꯭ᴛ꯭ʜ ꯭༭꯭ 𝐏꯭ʟ꯭ᴀ꯭ʏ꯭ʙ꯭ᴀ꯭ᴄ꯭ᴋ\n"
-            f"• 𝐒꯭ᴛ꯭ᴀ꯭ʙ꯭ʟ꯭ᴇ ꯭༭꯭ 𝐄꯭x꯭ᴘ꯭ᴇ꯭ʀ꯭ɪ꯭ᴇ꯭ɴ꯭ᴄ꯭ᴇ\n\n"
-
-            f"𝐔꯭s꯭ᴇ ꯭༭꯭ /start ᴛᴏ ʙᴇɢɪɴ."
+    f"<b>❏ ˹ᴡᴇʟᴄᴏᴍᴇ, {user.mention} 🇮🇳˼</b>\n\n"
+    f"˹ʏᴏᴜʀ ʀᴇǫᴜᴇsᴛ ᴛᴏ ᴊᴏɪɴ "
+    f"<b>{group_title}</b> ʜᴀs ʙᴇᴇɴ ʀᴇᴄᴇɪᴠᴇᴅ˼ ✅\n\n"
+    f"˹ᴇηᴊσʏ ᴜηʟɪмɪᴛ𝛆ᴅ мᴜsɪᴄ ᴧηᴅ ᴠɪʙ𝛆s˼ 🎧\n\n"
+    f"❏ ʜɪɢʜ ǫᴜᴀʟɪᴛʏ мᴜsɪᴄ 🎶\n"
+    f"❏ ғᴀsᴛ & sмᴏᴏᴛʜ ᴘʟᴀʏʙᴀᴄᴋ ♡\n"
+    f"❏ sᴛᴀʙʟᴇ мᴜsɪᴄ ᴇxᴘᴇʀɪᴇɴᴄᴇ ✨\n\n"
+    f"˹ᴜsᴇ /start ᴛᴏ ʙᴇɢɪɴ˼"
         )
 
         keyboard = InlineKeyboardMarkup(
