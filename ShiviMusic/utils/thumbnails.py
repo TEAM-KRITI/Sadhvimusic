@@ -17,7 +17,6 @@ FONT_INFO  = os.path.join(_ASSETS, "font.ttf")    # Poppins SB -> info line, cre
 # ───────────────────────── Text shown on the thumbnail ─────────────────────────
 DEV_TEXT    = "Dev :- @kirti_bots"     # top-right
 OWNER_TEXT  = "@System_xd_lll"         # bottom-left
-PLAYER_TEXT = "@Kirtiprobot"           # shown in the "Player :" part
 CREDIT_COLOR = (255, 241, 0)           # yellow
 
 CACHE_DIR = "cache"
@@ -57,6 +56,24 @@ def _next_accent():
             break
     _last_hue = hue
     r, g, b = colorsys.hsv_to_rgb(hue, random.uniform(0.45, 0.8), random.uniform(0.85, 1.0))
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+_last_title_hue = None
+
+
+def _next_title_color(accent):
+    """Bright title colour, new on every call (differs from the last one and from the border colour)."""
+    global _last_title_hue
+    acc_h = colorsys.rgb_to_hsv(*[v / 255 for v in accent])[0]
+    while True:
+        hue = random.random()
+        d_acc = min(abs(hue - acc_h), 1 - abs(hue - acc_h))
+        d_last = 1.0 if _last_title_hue is None else min(abs(hue - _last_title_hue), 1 - abs(hue - _last_title_hue))
+        if d_acc >= 0.1 and d_last >= 0.15:
+            break
+    _last_title_hue = hue
+    r, g, b = colorsys.hsv_to_rgb(hue, random.uniform(0.45, 0.7), 1.0)
     return int(r * 255), int(g * 255), int(b * 255)
 
 
@@ -152,7 +169,7 @@ def _rr_mask(box, radius, size=(W, H)):
     return m.resize(size, Image.LANCZOS)
 
 
-def _draw_player(bg, accent, accent2, src, title, sub, label, t_left, t_right, progress):
+def _draw_player(bg, accent, accent2, src, title, sub, title_color, t_left, t_right, progress):
     """iPhone-style 'now playing' card. Colours come from accent/accent2 (new every call)."""
     # ---- background: blurred cover + colour wash (changes every time) ----
     wash = Image.new("RGBA", (W, H))
@@ -251,21 +268,17 @@ def _draw_player(bg, accent, accent2, src, title, sub, label, t_left, t_right, p
 
     # ---- text ----
     draw = ImageDraw.Draw(bg)
-    f_label = ImageFont.truetype(FONT_INFO, 27)
     f_title = ImageFont.truetype(FONT_INFO, 31)
     f_hi    = ImageFont.truetype(FONT_INFO, 28)
     f_sub   = ImageFont.truetype(FONT_INFO, 26)
     f_time  = ImageFont.truetype(FONT_INFO, 20)
-
-    # label (device name spot)
-    draw.text((TXT_X, _Y(95)), label, font=f_label, fill=white, anchor="lm")
 
     # title (Latin + Hindi runs)
     title = _clean_title(title) or "Now Playing"
     title = trim_text(title, f_title, f_hi, MAX_TITLE_WIDTH)
     x = TXT_X
     for f, t in _segments(title, f_title, f_hi):
-        draw.text((x, _Y(116) + 6), t, font=f, fill=(255, 255, 255, 235), anchor="lm")
+        draw.text((x, _Y(116) + 6), t, font=f, fill=(*title_color, 255), anchor="lm")
         x += f.getlength(t)
 
     # artist — views
@@ -398,7 +411,7 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
         t_right = duration_text
 
         bg = _draw_player(
-            bg, accent, accent2, src, title, sub, PLAYER_TEXT,
+            bg, accent, accent2, src, title, sub, _next_title_color(accent),
             t_left, t_right, pct if total_s else 0.0,
         )
 
