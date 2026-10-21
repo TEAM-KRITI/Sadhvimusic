@@ -55,7 +55,7 @@ def _next_accent():
         if diff >= 0.15:
             break
     _last_hue = hue
-    r, g, b = colorsys.hsv_to_rgb(hue, random.uniform(0.45, 0.8), random.uniform(0.85, 1.0))
+    r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
     return int(r * 255), int(g * 255), int(b * 255)
 
 
@@ -182,27 +182,9 @@ def _rr_mask(box, radius, size=(W, H)):
 
 def _draw_player(bg, accent, accent2, src, title, sub, title_color, requester, t_left, t_right, progress):
     """iPhone-style 'now playing' card. Colours come from accent/accent2 (new every call)."""
-    # ---- background: blurred cover + colour wash (changes every time) ----
-    wash = Image.new("RGBA", (W, H))
-    wd = ImageDraw.Draw(wash)
-    for y in range(H):
-        t = y / (H - 1)
-        wd.line([(0, y), (W, y)], fill=(*_mix(accent, accent2, t), 150))
-    bg = Image.alpha_composite(bg, wash)
-
-    # ---- card shadow ----
+    # ---- pure black background + black card (lines are neon) ----
+    bg = Image.new("RGBA", (W, H), (0, 0, 0, 255))
     cm = _rr_mask(CARD, CARD_R)
-    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    shadow.putalpha(cm.filter(ImageFilter.GaussianBlur(26)).point(lambda v: int(v * 0.55)))
-    sh2 = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    sh2.paste(shadow, (0, 16))
-    bg = Image.alpha_composite(bg, sh2)
-
-    # ---- frosted glass card ----
-    glass = bg.filter(ImageFilter.GaussianBlur(28))
-    tint = Image.new("RGBA", (W, H), (*_mix(accent, (20, 20, 28), 0.55), 120))
-    glass = Image.alpha_composite(glass, tint)
-    bg.paste(glass, (0, 0), cm)
 
     # ---- everything shape-like drawn at 2x then downsampled ----
     ov = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
@@ -210,10 +192,12 @@ def _draw_player(bg, accent, accent2, src, title, sub, title_color, requester, t
 
     def S(v): return int(v * SS)
 
-    od.rounded_rectangle([S(v) for v in CARD], radius=S(CARD_R), outline=(255, 255, 255, 255), width=S(7))
+    white = (*accent, 255)      # neon lines
+    soft = (*accent, 90)        # dim track
 
-    white = (255, 255, 255, 255)
-    soft = (255, 255, 255, 105)
+    od.rounded_rectangle([S(v) for v in CARD], radius=S(CARD_R), outline=white, width=S(7))
+
+
 
     # progress bar
     by = int(_Y(170))
@@ -260,10 +244,21 @@ def _draw_player(bg, accent, accent2, src, title, sub, title_color, requester, t
 
     # home indicator
     hy = int(_Y(357))
-    od.rounded_rectangle([S(_X(467)), S(hy - 3), S(_X(571)), S(hy + 3)], radius=S(3), fill=(255, 255, 255, 200))
+    od.rounded_rectangle([S(_X(467)), S(hy - 3), S(_X(571)), S(hy + 3)], radius=S(3), fill=(*accent, 220))
 
     ov = ov.resize((W, H), Image.LANCZOS)
+    # neon glow: blurred copies of the lines under the crisp lines
+    for rad, gain in ((22, 1.6), (8, 1.4)):
+        g = ov.filter(ImageFilter.GaussianBlur(rad))
+        g.putalpha(g.getchannel("A").point(lambda v, k=gain: min(255, int(v * k))))
+        bg = Image.alpha_composite(bg, g)
     bg = Image.alpha_composite(bg, ov)
+    # hot white-ish core so it reads as a lit neon tube
+    core = ov.copy()
+    core.putalpha(core.getchannel("A").point(lambda v: int(v * 0.35)))
+    core_c = Image.new("RGBA", (W, H), (*_mix(accent, (255, 255, 255), 0.7), 255))
+    core_c.putalpha(core.getchannel("A"))
+    bg = Image.alpha_composite(bg, core_c)
 
     # ---- album art (rounded, with shadow) ----
     ax0, ay0, ax1, ay1 = ART_BOX
@@ -448,9 +443,7 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
         src = Image.open(thumb_path).convert("RGBA")
 
         # blurred, darkened background from the song cover
-        bg = ImageOps.fit(src, (W, H), Image.LANCZOS)
-        bg = bg.filter(ImageFilter.GaussianBlur(40))
-        bg = Image.alpha_composite(bg, Image.new("RGBA", (W, H), (0, 0, 0, 120)))
+        bg = Image.new("RGBA", (W, H), (0, 0, 0, 255))   # pure black background
 
         accent2 = _accent2(accent)
         sub = f"{channel} — {views_text}"
