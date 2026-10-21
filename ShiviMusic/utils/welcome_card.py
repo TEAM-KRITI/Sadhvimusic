@@ -8,7 +8,8 @@ import colorsys
 import math
 import os
 import random
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
@@ -379,7 +380,7 @@ def welcomepic(pic, user, chatname, user_id, uname, joined=None):
         d.text((1130, ry), val, font=vf, fill=col, anchor="lm")
 
     # event code
-    joined = joined or datetime.utcnow()
+    joined = joined or datetime.now(timezone.utc)
     code = joined.strftime("%d-%b-%Y").upper()
     d.text((880, 723), "VERIFIED EVENT CODE", font=_font(27), fill=lab_col, anchor="lm")
     d.line([(1212, 706), (1212, 742)], fill=(235, 240, 255), width=3)
@@ -456,10 +457,45 @@ def welcomepic(pic, user, chatname, user_id, uname, joined=None):
     # =====================================================
     # Save
     # =====================================================
-    os.makedirs("downloads", exist_ok=True)
-    out = f"downloads/welcome_{user_id}.png"
-    bg.convert("RGB").save(out)
+    return _save(bg, user_id)
+
+
+def _save(img, user_id):
+    """Unique absolute path -> concurrent joins / cwd changes can't clash."""
+    folder = os.path.abspath("downloads")
+    os.makedirs(folder, exist_ok=True)
+    out = os.path.join(folder, f"welcome_{user_id}_{int(time.time() * 1000)}.png")
+    img.convert("RGB").save(out)
     return out
+
+
+def simple_welcomepic(pic, user, chatname, user_id, uname, joined=None):
+    """Light fallback card (plain Pillow, no numpy) used if the neon card ever fails."""
+    c1, c2, _c3 = _next_palette()
+    w, h = 1280, 720
+    img = Image.new("RGB", (w, h))
+    d = ImageDraw.Draw(img)
+    for y in range(h):
+        d.line([(0, y), (w, y)], fill=_mix(BG_TOP, _mix(c1, BG_BOT, 0.75), y / h))
+
+    try:
+        photo = Image.open(pic).convert("RGB")
+    except Exception:
+        photo = Image.open(FALLBACK_PIC).convert("RGB")
+    r = 190
+    photo = ImageOps.fit(photo, (r * 2, r * 2), Image.LANCZOS)
+    mask = Image.new("L", (r * 2, r * 2), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, r * 2 - 1, r * 2 - 1), fill=255)
+    cx, cy = 280, h // 2
+    d.ellipse((cx - r - 10, cy - r - 10, cx + r + 10, cy + r + 10), outline=c1, width=8)
+    img.paste(photo, (cx - r, cy - r), mask)
+
+    d.text((540, 190), "WELCOME", font=_font(110), fill=WHITE, anchor="lm")
+    d.text((540, 300), _safe(chatname, 22, "GROUP").upper(), font=_font(50), fill=c2, anchor="lm")
+    d.text((540, 420), f"USERNAME : {('@' + uname) if uname else 'NOT SET'}", font=_font(40), fill=WHITE, anchor="lm")
+    d.text((540, 490), f"USER ID : {user_id}", font=_font(40), fill=WHITE, anchor="lm")
+    d.text((540, 560), "STATUS : VERIFIED MEMBER", font=_font(40), fill=c2, anchor="lm")
+    return _save(img, user_id)
 
 
 # -------------------------------------------------------
