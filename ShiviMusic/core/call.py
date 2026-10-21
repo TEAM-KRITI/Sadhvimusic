@@ -12,6 +12,7 @@
 # ❤️ Made with dedication and love by annu_updates
 # -----------------------------------------------
 import asyncio
+import html
 import os
 from datetime import datetime, timedelta
 from typing import Union
@@ -283,7 +284,7 @@ class Call(PyTgCalls):
         the normal "queue ended" behaviour).
         """
         if seed_vidid:
-            remember_played(chat_id, seed_vidid, seed_title)
+            remember_played(chat_id, seed_vidid)
 
         status_msg = None
         try:
@@ -318,9 +319,19 @@ class Call(PyTgCalls):
         if not file_path:
             return await _fail()
 
-        remember_played(chat_id, track["vidid"], track["title"])
+        remember_played(chat_id, track["vidid"])
         title = track["title"].title()
         duration_min = track["duration_min"]
+
+        # Status line ko song name ke saath update karo: "🔁 AutoPlay  <song name>"
+        # (ye message gaana chalne ke baad bhi chat me rehta hai)
+        if status_msg:
+            try:
+                await status_msg.edit_text(
+                    f"🔁 <b>ᴀᴜᴛᴏᴘʟᴀʏ</b>  {html.escape(title[:60])}"
+                )
+            except Exception:
+                pass
 
         await put_queue(
             chat_id,
@@ -372,12 +383,6 @@ class Call(PyTgCalls):
             db[chat_id][0]["markup"] = "stream"
         except Exception:
             pass
-
-        if status_msg:
-            try:
-                await status_msg.delete()
-            except Exception:
-                pass
 
         try:
             await add_active_chat(chat_id)
@@ -504,7 +509,7 @@ class Call(PyTgCalls):
                     original_chat_id,
                     text=_["call_6"],
                 )
-            img = await gen_thumb(videoid)
+            img = await gen_thumb(videoid, user_name=user)
             button = stream_markup(_, chat_id)
             run = await app.send_photo(
                 chat_id=original_chat_id,
@@ -540,7 +545,7 @@ class Call(PyTgCalls):
                     original_chat_id,
                     text=_["call_6"],
                 )
-            img = await gen_thumb(videoid)
+            img = await gen_thumb(videoid, user_name=user)
             button = stream_markup(_, chat_id)
             await mystic.delete()
             run = await app.send_photo(
@@ -613,7 +618,7 @@ class Call(PyTgCalls):
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "tg"
             else:
-                img = await gen_thumb(videoid)
+                img = await gen_thumb(videoid, user_name=user)
                 button = stream_markup(_, chat_id)
                 run = await app.send_photo(
                     chat_id=original_chat_id,
