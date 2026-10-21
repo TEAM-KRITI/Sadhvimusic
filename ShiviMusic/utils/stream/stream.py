@@ -84,13 +84,13 @@ async def stream(
                     raise AssistantErr(_["play_14"])
                 await Sona.join_call(chat_id, original_chat_id, file_path, video=status, image=thumbnail)
                 await put_queue(chat_id, original_chat_id, file_path if direct else f"vid_{vidid}", title, duration_min, user_mention, vidid, user_id, "video" if video else "audio", forceplay=forceplay)
-                img = await get_thumb(vidid)
+                img = await get_thumb(vidid, user_name=user_name)
                 button = stream_markup(_, chat_id)
                 run = await app.send_photo(
                     original_chat_id,
                     photo=img,
                     has_spoiler=True,
-                    caption=_["stream_1"].format(f"https://t.me/{app.username}?start=info_{vidid}", title[:23], duration_min, user_mention),
+                    caption=_["stream_1"].format(f"https://t.me/{app.username}?start=info_{vidid}", title[:60], duration_min, user_mention),
                     reply_markup=InlineKeyboardMarkup(button),
                 )
                 db[chat_id][0]["mystic"] = run
@@ -140,12 +140,12 @@ async def stream(
                 db[chat_id] = []
             await Sona.join_call(chat_id, original_chat_id, file_path, video=status, image=thumbnail)
             await put_queue(chat_id, original_chat_id, file_path if direct else f"vid_{vidid}", title, duration_min, user_mention, vidid, user_id, "video" if video else "audio", forceplay=forceplay)
-            img = await get_thumb(vidid)
+            img = await get_thumb(vidid, user_name=user_name)
             button = stream_markup(_, chat_id)
             run = await app.send_photo(
                 original_chat_id,
                 photo=img,
-                caption=_["stream_1"].format(f"https://t.me/{app.username}?start=info_{vidid}", title[:23], duration_min, user_mention),
+                caption=_["stream_1"].format(f"https://t.me/{app.username}?start=info_{vidid}", title[:60], duration_min, user_mention),
                 reply_markup=InlineKeyboardMarkup(button),
             )
             db[chat_id][0]["mystic"] = run
@@ -175,7 +175,7 @@ async def stream(
             run = await app.send_photo(
                 original_chat_id,
                 photo=config.SOUNCLOUD_IMG_URL,
-                caption=_["stream_1"].format(config.SUPPORT_CHAT, title[:23], duration_min, user_mention),
+                caption=_["stream_1"].format(config.SUPPORT_CHAT, title[:60], duration_min, user_mention),
                 reply_markup=InlineKeyboardMarkup(button),
             )
             db[chat_id][0]["mystic"] = run
@@ -209,7 +209,7 @@ async def stream(
             run = await app.send_photo(
                 original_chat_id,
                 photo=config.TELEGRAM_VIDEO_URL if video else config.TELEGRAM_AUDIO_URL,
-                caption=_["stream_1"].format(link, title[:23], duration_min, user_mention),
+                caption=_["stream_1"].format(link, title[:60], duration_min, user_mention),
                 reply_markup=InlineKeyboardMarkup(button),
             )
             db[chat_id][0]["mystic"] = run
@@ -241,12 +241,12 @@ async def stream(
                 raise AssistantErr(_["str_3"])
             await Sona.join_call(chat_id, original_chat_id, file_path, video=status, image=thumbnail if thumbnail else None)
             await put_queue(chat_id, original_chat_id, f"live_{vidid}", title, duration_min, user_mention, vidid, user_id, "video" if video else "audio", forceplay=forceplay)
-            img = await get_thumb(vidid)
+            img = await get_thumb(vidid, user_name=user_name)
             button = stream_markup(_, chat_id)
             run = await app.send_photo(
                 original_chat_id,
                 photo=img,
-                caption=_["stream_1"].format(f"https://t.me/{app.username}?start=info_{vidid}", title[:23], duration_min, user_mention),
+                caption=_["stream_1"].format(f"https://t.me/{app.username}?start=info_{vidid}", title[:60], duration_min, user_mention),
                 reply_markup=InlineKeyboardMarkup(button),
             )
             db[chat_id][0]["mystic"] = run
