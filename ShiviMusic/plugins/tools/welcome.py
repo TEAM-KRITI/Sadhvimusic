@@ -219,7 +219,11 @@ def circle(
 # Generator: ShiviMusic/utils/welcome_card.py
 # =======================================================
 
-from ShiviMusic.utils.welcome_card import welcomepic, welcomepic_simple  # noqa: E402
+from ShiviMusic.utils.welcome_card import (  # noqa: E402
+    simple_welcomepic,
+    welcomepic,
+    welcomepic_simple,
+)
 
 
 # =======================================================
@@ -550,7 +554,7 @@ async def _send_welcome(chat, user):
         loop = asyncio.get_running_loop()
         title = chat.title or "Group"
 
-        for maker in (welcomepic, simple_welcomepic):
+        for maker in (welcomepic, simple_welcomepic, welcomepic_simple):
             try:
                 welcomeimg = await loop.run_in_executor(
                     None, maker, pic, user, title, user.id, user.username,
