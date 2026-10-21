@@ -94,6 +94,17 @@ def _is_devanagari(ch):
     return 0x0900 <= o <= 0x097F or 0xA8E0 <= o <= 0xA8FF or 0x1CD0 <= o <= 0x1CFF
 
 
+def _plain_name(value):
+    """'[Name](tg://user?id=1)' / '<a href=..>Name</a>' / 'Name' -> 'Name'."""
+    if not value:
+        return ""
+    text = str(value)
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.strip()
+    return "" if text.lower() in {"unknown", "none", "badnam"} else text
+
+
 def _clean_title(text):
     """Drop characters neither font can draw (emoji etc.) so the title never shows boxes."""
     out = []
@@ -169,7 +180,7 @@ def _rr_mask(box, radius, size=(W, H)):
     return m.resize(size, Image.LANCZOS)
 
 
-def _draw_player(bg, accent, accent2, src, title, sub, title_color, t_left, t_right, progress):
+def _draw_player(bg, accent, accent2, src, title, sub, title_color, requester, t_left, t_right, progress):
     """iPhone-style 'now playing' card. Colours come from accent/accent2 (new every call)."""
     # ---- background: blurred cover + colour wash (changes every time) ----
     wash = Image.new("RGBA", (W, H))
@@ -199,7 +210,7 @@ def _draw_player(bg, accent, accent2, src, title, sub, title_color, t_left, t_ri
 
     def S(v): return int(v * SS)
 
-    od.rounded_rectangle([S(v) for v in CARD], radius=S(CARD_R), outline=(255, 255, 255, 70), width=S(2))
+    od.rounded_rectangle([S(v) for v in CARD], radius=S(CARD_R), outline=(255, 255, 255, 255), width=S(7))
 
     white = (255, 255, 255, 255)
     soft = (255, 255, 255, 105)
@@ -267,11 +278,46 @@ def _draw_player(bg, accent, accent2, src, title, sub, title_color, t_left, t_ri
     bg.paste(art, (ax0, ay0), am.crop((ax0, ay0, ax1, ay1)))
 
     # ---- text ----
+    f_title = ImageFont.truetype(FONT_TITLE, 38)   # Boogaloo
+    f_hi    = ImageFont.truetype(FONT_INFO, 29)    # Poppins (Hindi runs)
+    f_sub   = ImageFont.truetype(FONT_TITLE, 30)
+    f_name  = ImageFont.truetype(FONT_TITLE, 29)
+    f_name_hi = ImageFont.truetype(FONT_INFO, 23)
+    f_init  = ImageFont.truetype(FONT_TITLE, 26)
+    f_init_hi = ImageFont.truetype(FONT_INFO, 22)
+    f_time  = ImageFont.truetype(FONT_TITLE, 23)
+
+    # requester pill:  ( A ) Name   -- coloured initial circle + frosted pill
+    name = _clean_title(requester)
+    name_segs = []
+    if name:
+        name = trim_text(name, f_name, f_name_hi, MAX_TITLE_WIDTH - 110)
+        name_segs = _segments(name, f_name, f_name_hi)
+        ph, pad = 42, 6
+        pcy = 556                      # bottom of the text column, under the volume row
+        pw = pad + ph - 2 * pad + 12 + _text_width(name_segs) + 20
+        px0 = (BAR_X0 + BAR_X1 - pw) / 2
+        px1 = px0 + pw
+        pill = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
+        pd = ImageDraw.Draw(pill)
+        pd.rounded_rectangle([int(px0 * SS), int((pcy - ph / 2) * SS), int(px1 * SS), int((pcy + ph / 2) * SS)],
+                             radius=int(ph / 2 * SS), fill=(255, 255, 255, 48), outline=(255, 255, 255, 170), width=2 * SS)
+        cr = ph / 2 - pad
+        ccx = px0 + pad + cr
+        pd.ellipse([int((ccx - cr) * SS), int((pcy - cr) * SS), int((ccx + cr) * SS), int((pcy + cr) * SS)], fill=(*title_color, 255))
+        pill = pill.resize((W, H), Image.LANCZOS)
+        bg = Image.alpha_composite(bg, pill)
+
     draw = ImageDraw.Draw(bg)
-    f_title = ImageFont.truetype(FONT_INFO, 31)
-    f_hi    = ImageFont.truetype(FONT_INFO, 28)
-    f_sub   = ImageFont.truetype(FONT_INFO, 26)
-    f_time  = ImageFont.truetype(FONT_INFO, 20)
+
+    if name_segs:
+        ch = name[0].upper()
+        fi = f_init_hi if _is_devanagari(ch) else f_init
+        draw.text((ccx, pcy + 1), ch, font=fi, fill=(25, 25, 35, 255), anchor="mm")
+        x = ccx + cr + 12
+        for f, t in name_segs:
+            draw.text((x, pcy + 1), t, font=f, fill=(255, 255, 255, 255), anchor="lm")
+            x += f.getlength(t)
 
     # title (Latin + Hindi runs)
     title = _clean_title(title) or "Now Playing"
@@ -284,7 +330,10 @@ def _draw_player(bg, accent, accent2, src, title, sub, title_color, t_left, t_ri
     # artist — views
     sub = _clean_title(sub)
     sub = trim_text(sub, f_sub, f_hi, MAX_TITLE_WIDTH)
-    draw.text((TXT_X, _Y(138) + 8), sub, font=f_sub, fill=(255, 255, 255, 190), anchor="lm")
+    x = TXT_X
+    for f, t in _segments(sub, f_sub, f_hi):
+        draw.text((x, _Y(138) + 8), t, font=f, fill=(255, 255, 255, 215), anchor="lm")
+        x += f.getlength(t)
 
     # times
     ty = _Y(182)
@@ -352,8 +401,8 @@ async def _fetch_title_via_oembed(videoid: str):
     return None
 
 
-async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = True, user_name: str = "Badnam") -> str:
-    # user_name is kept only so existing callers don't break.
+async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = True, user_name=None) -> str:
+    # user_name = person who requested the song (plain name or markdown/html mention)
     print(f"📥 get_thumb called with videoid: {videoid}")
 
     timestamp = int(time.time() * 1000)
@@ -411,7 +460,7 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
         t_right = duration_text
 
         bg = _draw_player(
-            bg, accent, accent2, src, title, sub, _next_title_color(accent),
+            bg, accent, accent2, src, title, sub, _next_title_color(accent), None,
             t_left, t_right, pct if total_s else 0.0,
         )
 
