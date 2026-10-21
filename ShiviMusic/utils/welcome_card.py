@@ -22,8 +22,8 @@ W, H = 1720, 914          # card size
 SS = 2                    # supersampling for smooth edges
 
 WHITE = (255, 255, 255)
-BG_TOP = (4, 9, 30)
-BG_BOT = (2, 5, 18)
+BG_TOP = (0, 0, 0)
+BG_BOT = (0, 0, 0)
 
 
 # -------------------------------------------------------
@@ -164,7 +164,6 @@ def welcomepic(pic, user, chatname, user_id, uname, joined=None):
     gd.ellipse((40, 180, 740, 880), fill=(*c1, 60))
     gd.ellipse((1100, 90, 1720, 420), fill=(*c3, 38))
     gd.ellipse((900, 520, 1720, 1000), fill=(*c2, 34))
-    bg = Image.alpha_composite(bg, glow.filter(ImageFilter.GaussianBlur(90)))
 
     grad_h = _hgrad((W, H), [c1, c2, c3], tilt=0.35)
 
@@ -280,11 +279,11 @@ def welcomepic(pic, user, chatname, user_id, uname, joined=None):
     fd = ImageDraw.Draw(fill)
     fd.rounded_rectangle(
         (pill[0] + 4, pill[1] + 4, pill[2] - 4, pill[3] - 4),
-        radius=28, fill=(5, 10, 32, 245),
+        radius=28, fill=(0, 0, 0, 255),
     )
     fd.rounded_rectangle(
         (panel[0] + 4, panel[1] + 4, panel[2] - 4, panel[3] - 4),
-        radius=34, fill=(4, 9, 28, 238),
+        radius=34, fill=(0, 0, 0, 255),
     )
     bg = Image.alpha_composite(bg, fill)
     # re-draw crisp borders on top of fills (so glow inside the fill doesn't hide them)
@@ -409,7 +408,7 @@ def welcomepic(pic, user, chatname, user_id, uname, joined=None):
     circ(ix, 614, 36, WHITE, 4)
     shield = [(ix - 17, 600), (ix, 594), (ix + 17, 600), (ix + 15, 622), (ix, 634), (ix - 15, 622)]
     pts = [(S(x), S(y)) for x, y in shield]
-    od.polygon(pts, fill=(10, 18, 40, 255))
+    od.polygon(pts, fill=(0, 0, 0, 255))
     od.line(pts + [pts[0]], fill=WHITE, width=S(3), joint="curve")
     od.line([(S(ix - 8), S(614)), (S(ix - 2), S(621)), (S(ix + 9), S(606))], fill=WHITE, width=S(4), joint="curve")
     # calendar
