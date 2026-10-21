@@ -288,7 +288,7 @@ def _draw_player(bg, accent, accent2, src, title, sub, title_color, requester, t
     f_time  = ImageFont.truetype(FONT_TITLE, 23)
 
     # requester pill:  ( A ) Name   -- coloured initial circle + frosted pill
-    name = _clean_title(requester)
+    name = _clean_title(requester) if requester else ""
     name_segs = []
     if name:
         name = trim_text(name, f_name, f_name_hi, MAX_TITLE_WIDTH - 110)
