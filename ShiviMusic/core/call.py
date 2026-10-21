@@ -12,7 +12,6 @@
 # ❤️ Made with dedication and love by annu_updates
 # -----------------------------------------------
 import asyncio
-import html
 import os
 from datetime import datetime, timedelta
 from typing import Union
@@ -354,39 +353,26 @@ class Call(PyTgCalls):
         except Exception:
             return await _fail()
 
-        button = stream_markup_timer(_, chat_id, "0:00", duration_min)
-        caption = _["stream_1"].format(
-            f"https://t.me/{app.username}?start=info_{track['vidid']}",
-            title[:60],
-            duration_min,
-            "ᴧᴜᴛᴏᴘʟᴧʏ ✨",
-        )
-        run = None
         try:
             img = await gen_thumb(track["vidid"])
+            # show the progress-bar row right away (timer keeps updating it)
+            button = stream_markup_timer(_, chat_id, "0:00", duration_min)
             run = await app.send_photo(
                 chat_id=original_chat_id,
                 photo=img,
-                caption=caption,
+                caption=_["stream_1"].format(
+                    f"https://t.me/{app.username}?start=info_{track['vidid']}",
+                    title[:23],
+                    duration_min,
+                    "ᴧᴜᴛᴏᴘʟᴧʏ ✨",
+                ),
                 reply_markup=InlineKeyboardMarkup(button),
             )
-        except Exception as e:
-            LOGGER(__name__).warning(f"autoplay card photo failed: {e}")
-            # Thumbnail fail ho to bhi song name zaroor dikhe
-            try:
-                run = await app.send_message(
-                    original_chat_id,
-                    caption,
-                    reply_markup=InlineKeyboardMarkup(button),
-                    disable_web_page_preview=True,
-                )
-            except Exception:
-                run = None
-        if run and db.get(chat_id):
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "stream"
+        except Exception:
+            pass
 
-        # "🔁 AutoPlay - Fetching" status message ab delete
         if status_msg:
             try:
                 await status_msg.delete()
@@ -525,7 +511,7 @@ class Call(PyTgCalls):
                 photo=img,
                 caption=_["stream_1"].format(
                     f"https://t.me/{app.username}?start=info_{videoid}",
-                    title[:60],
+                    title[:23],
                     check[0]["dur"],
                     user,
                 ),
@@ -562,7 +548,7 @@ class Call(PyTgCalls):
                 photo=img,
                 caption=_["stream_1"].format(
                     f"https://t.me/{app.username}?start=info_{videoid}",
-                    title[:60],
+                    title[:23],
                     check[0]["dur"],
                     user,
                 ),
@@ -608,7 +594,7 @@ class Call(PyTgCalls):
                         else config.TELEGRAM_VIDEO_URL
                     ),
                     caption=_["stream_1"].format(
-                        config.SUPPORT_GROUP, title[:60], check[0]["dur"], user
+                        config.SUPPORT_GROUP, title[:23], check[0]["dur"], user
                     ),
                     reply_markup=InlineKeyboardMarkup(button),
                 )
@@ -620,7 +606,7 @@ class Call(PyTgCalls):
                     chat_id=original_chat_id,
                     photo=config.SOUNCLOUD_IMG_URL,
                     caption=_["stream_1"].format(
-                        config.SUPPORT_GROUP, title[:60], check[0]["dur"], user
+                        config.SUPPORT_GROUP, title[:23], check[0]["dur"], user
                     ),
                     reply_markup=InlineKeyboardMarkup(button),
                 )
@@ -634,7 +620,7 @@ class Call(PyTgCalls):
                     photo=img,
                     caption=_["stream_1"].format(
                         f"https://t.me/{app.username}?start=info_{videoid}",
-                        title[:60],
+                        title[:23],
                         check[0]["dur"],
                         user,
                     ),
