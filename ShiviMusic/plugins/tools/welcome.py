@@ -546,24 +546,19 @@ async def _send_welcome(chat, user):
                 pass
 
         # welcome image (blocking PIL work -> executor)
+        # 1) neon card  2) simple card  3) static asset (hamesha photo ke saath jaye)
         loop = asyncio.get_running_loop()
+        title = chat.title or "Group"
 
-        welcomeimg = None
-
-        for gen in (welcomepic, welcomepic_simple):
+        for maker in (welcomepic, simple_welcomepic):
             try:
                 welcomeimg = await loop.run_in_executor(
-                    None,
-                    gen,
-                    pic,
-                    user,
-                    chat.title or "Group",
-                    user.id,
-                    user.username,
+                    None, maker, pic, user, title, user.id, user.username,
                 )
                 break
             except Exception:
-                LOGGER.exception(f"[WELCOME] {gen.__name__} failed")
+                LOGGER.exception(f"[WELCOME] {maker.__name__} failed")
+                welcomeimg = None
 
         caption = welcome_caption(user, chat.title or "Group")
 
@@ -585,40 +580,20 @@ async def _send_welcome(chat, user):
 
         msg = None
 
-        if welcomeimg:
+        photos = [p for p in (welcomeimg, STATIC_WELCOME) if p and os.path.exists(p)]
+
+        for photo in photos:
             try:
                 msg = await app.send_photo(
                     chat_id=chat_id,
-                    photo=welcomeimg,
+                    photo=photo,
                     caption=caption,
                     parse_mode=enums.ParseMode.HTML,
                     reply_markup=markup,
                 )
+                break
             except Exception:
-                LOGGER.exception("[WELCOME] send_photo (png) failed")
-
-                try:
-                    from PIL import Image as _Img
-
-                    jpg = welcomeimg.rsplit(".", 1)[0] + ".jpg"
-                    _Img.open(welcomeimg).convert("RGB").save(jpg, quality=92)
-
-                    try:
-                        msg = await app.send_photo(
-                            chat_id=chat_id,
-                            photo=jpg,
-                            caption=caption,
-                            parse_mode=enums.ParseMode.HTML,
-                            reply_markup=markup,
-                        )
-                    finally:
-                        try:
-                            os.remove(jpg)
-                        except Exception:
-                            pass
-
-                except Exception:
-                    LOGGER.exception("[WELCOME] send_photo (jpg) failed")
+                LOGGER.exception(f"[WELCOME] send_photo failed ({photo})")
 
         if msg is None:
             # fallback: text-only welcome
