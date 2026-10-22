@@ -140,10 +140,14 @@ async def gib_repo_callback(_, callback_query):
 
 @app.on_callback_query(filters.regex("^bot_info_data$"))
 async def show_bot_info(c: app, q: CallbackQuery):
+    # PEER_ID_INVALID fix: ab chat me message bhejna hi nahi padta,
+    # ping seedha Telegram API call se measure hota hai aur popup q.answer se dikhta hai.
     start = time()
-    x = await c.send_message(q.message.chat.id, "ᴄʜᴇᴀᴋɪɴɢ ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...")
+    try:
+        await c.get_me()
+    except Exception:
+        pass
     delta_ping = time() - start
-    await x.delete()
     txt = f"""ʏᴏᴜᴛᴜʙᴇ ᴀᴘɪ sᴛᴀᴛᴜs...💌
 
 • ᴅᴀᴛᴀʙᴀsᴇ : ᴏɴʟɪɴᴇ
@@ -154,7 +158,10 @@ async def show_bot_info(c: app, q: CallbackQuery):
 
 • ᴇᴠᴇʀʏᴛʜɪɴɢ ʟᴏᴏᴋs ɢᴏᴏᴅ !!
 """
-    await q.answer(txt, show_alert=True)
+    try:
+        await q.answer(txt, show_alert=True)
+    except Exception:
+        pass
     return
 
 
