@@ -29,6 +29,7 @@ sudoersdb = mongodb.sudoers
 usersdb = mongodb.tgusersdb
 playlistdb = mongodb.playlist
 autoplaydb = mongodb.autoplaymode
+thumbdb = mongodb.thumbmode
 favdb = mongodb.userfavourites
 userplaylistdb = mongodb.userplaylists
 
@@ -46,6 +47,7 @@ channelconnect = {}
 langm = {}
 loop = {}
 autoplaycache = {}
+thumbcache = {}
 maintenance = []
 nonadmin = {}
 pause = {}
@@ -650,6 +652,35 @@ async def autoplay_off(chat_id: int):
     autoplaycache[chat_id] = False
 
     await autoplaydb.delete_one({"chat_id": chat_id})
+
+
+# ===========================================================
+# THUMBNAIL (per chat) - default ON
+# ===========================================================
+
+async def is_thumb_on(chat_id: int) -> bool:
+    cached = thumbcache.get(chat_id)
+    if cached is not None:
+        return cached
+    try:
+        data = await thumbdb.find_one({"chat_id": chat_id})
+    except Exception:
+        return True
+    status = not (data and data.get("off"))
+    thumbcache[chat_id] = status
+    return status
+
+
+async def thumb_on(chat_id: int):
+    thumbcache[chat_id] = True
+    await thumbdb.delete_one({"chat_id": chat_id})
+
+
+async def thumb_off(chat_id: int):
+    thumbcache[chat_id] = False
+    await thumbdb.update_one(
+        {"chat_id": chat_id}, {"$set": {"chat_id": chat_id, "off": True}}, upsert=True
+    )
 
 
 # ===========================================================
@@ -1302,7 +1333,7 @@ async def ensure_indexes():
         (gbansdb, "user_id"), (langdb, "chat_id"), (onoffdb, "on_off"),
         (playmodedb, "chat_id"), (playtypedb, "chat_id"), (skipdb, "chat_id"),
         (sudoersdb, "sudo"), (usersdb, "user_id"), (playlistdb, "chat_id"),
-        (autoplaydb, "chat_id"), (favdb, "user_id"), (userplaylistdb, "user_id"),
+        (autoplaydb, "chat_id"), (thumbdb, "chat_id"), (favdb, "user_id"), (userplaylistdb, "user_id"),
     ]
     for col, field in pairs:
         try:
