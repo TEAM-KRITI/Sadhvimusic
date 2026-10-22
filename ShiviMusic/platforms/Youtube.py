@@ -33,7 +33,7 @@ except ImportError:
         pass
 
 try:
-    from youtubesearchpython.__future__ import VideosSearch, Playlist
+    from youtubesearchpython.__future__ import VideosSearch
 except ImportError:
     VideosSearch = None
     Playlist = None
