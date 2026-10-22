@@ -41,23 +41,23 @@ def private_panel(_):
     buttons = [
         [
             InlineKeyboardButton(
-                text="✚ ᴀᴅᴅ ᴍᴇ ɪη ʏᴏᴜʀ ɢʀᴏᴜᴘ ✚",
+                text="✙ ʌᴅᴅ ϻє ɪη ʏσυʀ ɢʀσυᴘ ✙",
                 url=f"https://t.me/{app.username}?startgroup=true",
             )
         ],
         [
             InlineKeyboardButton(
-                text="• ᴏᴡɴᴇʀ •",
+                text="˹ ❍ᴡηєʀ ˼",
                 user_id=config.OWNER_ID,
             ),
             InlineKeyboardButton(
-                text="• sᴜᴘᴘᴏʀᴛ •",
+                text="˹ sυᴘᴘσʀᴛ ˼",
                 url=config.SUPPORT_CHAT,
             ),
         ],
         [
             InlineKeyboardButton(
-                text="⌜ ʜᴇʟᴘ ᴀηᴅ ᴄᴏᴍᴍᴀηᴅs ⌟",
+                text="˹ ʜєʟᴘ ᴧηᴅ ᴄσϻϻᴧηᴅs ˼",
                 callback_data="settings_back_helper",
             )
         ],
