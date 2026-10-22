@@ -51,12 +51,22 @@ def _markup(chat_id: int) -> InlineKeyboardMarkup:
     )
 
 
-@app.on_message(filters.command(["thumb", "thumbnail"]) & filters.group & ~BANNED_USERS)
+@app.on_message(filters.command(["thumb", "thumbnail"]) & ~BANNED_USERS)
 async def thumb_cmd(client, message: Message):
     chat_id = message.chat.id
 
+    # private chat me /thumb ka matlab nahi -> chup rehne ki jagah batao
+    if message.chat.type == enums.ChatType.PRIVATE:
+        return await message.reply_text(
+            "❖ **ᴛʜᴜᴍʙɴᴀɪʟ sᴇᴛᴛɪɴɢs sɪʀғ ɢʀᴏᴜᴘ ᴍᴇ ʜɪ ᴋᴀᴀᴍ ᴋᴀʀᴛᴇ ʜᴀɪɴ.**\n"
+            "➤ ʙᴏᴛ ᴋᴏ ɢʀᴏᴜᴘ ᴍᴇ ᴀᴅᴅ ᴋᴀʀᴋᴇ `/thumb` ʏᴀ `/thumb on` / `/thumb off` ᴜsᴇ ᴋᴀʀᴏ."
+        )
+
+    # anonymous admin (group ke naam se message) ko bhi allow karo
+    anon_admin = bool(message.sender_chat and message.sender_chat.id == chat_id)
+
     if len(message.command) > 1:
-        if not message.from_user or not await _is_admin(chat_id, message.from_user.id):
+        if not anon_admin and (not message.from_user or not await _is_admin(chat_id, message.from_user.id)):
             return await message.reply_text("❌ **sɪʀғ ᴀᴅᴍɪɴs ʜɪ ᴛʜᴜᴍʙɴᴀɪʟ ᴍᴀɴᴀɢᴇ ᴋᴀʀ sᴀᴋᴛᴇ ʜᴀɪɴ.**")
         mode = message.command[1].lower()
         if mode in ("on", "enable"):
