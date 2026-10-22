@@ -18,7 +18,7 @@ import httpx
 import yt_dlp
 
 # Use environment variables for configuration
-API_URL = os.getenv("API_URL", "https://yt.riteshyt.in").rstrip("/")
+API_URL = os.getenv("API_URL", "https://www.riteshyt.in").rstrip("/")
 API_KEY = os.getenv("API_KEY", "riteshfree115633af058ed3aeb59dbeed")
 
 # --- Dynamic Compatibility / Fallbacks for Environment Safety ---
