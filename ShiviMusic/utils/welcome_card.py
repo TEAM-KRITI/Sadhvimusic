@@ -4,6 +4,11 @@ import unicodedata
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
+try:                                   # Pillow 9.5.0 rounded_rectangle crash guard
+    from ShiviMusic.utils import pil_compat  # noqa: F401
+except Exception:
+    pass
+
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
 TEMPLATE = os.path.join(_ASSETS, "welcome_template.png")
 FONT_PATH = os.path.join(_ASSETS, "font.ttf")        # Poppins (Latin + Devanagari)
@@ -31,8 +36,14 @@ _LOOK.update({
 })
 
 
+_FONT_CACHE = {}
+
+
 def _font(size=FONT_SIZE):
-    return ImageFont.truetype(FONT_PATH, size)
+    f = _FONT_CACHE.get(size)
+    if f is None:
+        f = _FONT_CACHE[size] = ImageFont.truetype(FONT_PATH, size)
+    return f
 
 
 def _render_mask(font, ch):
@@ -124,7 +135,7 @@ def welcomepic(photo_path, name, user_id, username, out_path):
         photo = _avatar(safe_name[:1])
     rp = _round_photo(photo, PHOTO_RADIUS)
     cx, cy = PHOTO_CENTER
-    bg.alpha_composite(rp, (cx - PHOTO_RADIUS, cy - PHOTO_RADIUS))
+    bg.paste(rp, (cx - PHOTO_RADIUS, cy - PHOTO_RADIUS), rp)
 
     # ---- text ----
     uname = clean_text(str(username or "").lstrip("@"), font) or "No Username"
@@ -141,4 +152,3 @@ def welcomepic(photo_path, name, user_id, username, out_path):
 
     bg.convert("RGB").save(out_path, "PNG")
     return out_path
-
