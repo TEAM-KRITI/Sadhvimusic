@@ -1,154 +1,268 @@
-# Welcome card (Krishna theme) - template + user photo + Name / ID / Username
+# Welcome message + welcome card PNG for new group members.
+#   /welcome         -> status
+#   /welcome on|off  -> enable / disable in this group (admins only)
+#   /welcome test    -> send a test welcome for yourself and show any error (admins only)
+import asyncio
+import html
 import os
-import unicodedata
+import time
+import traceback
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from pyrogram import filters
+from pyrogram.enums import ChatMemberStatus, ChatType, ParseMode
+from pyrogram.types import ChatMemberUpdated, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-try:                                   # Pillow 9.5.0 rounded_rectangle crash guard
-    from ShiviMusic.utils import pil_compat  # noqa: F401
-except Exception:
-    pass
+from config import BANNED_USERS, OWNER_ID
+from ShiviMusic import app
+from ShiviMusic.core.mongo import mongodb
+from ShiviMusic.logging import LOGGER
+from ShiviMusic.misc import SUDOERS
+from ShiviMusic.utils.welcome_card import welcomepic
 
-_ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
-TEMPLATE = os.path.join(_ASSETS, "welcome_template.png")
-FONT_PATH = os.path.join(_ASSETS, "font.ttf")        # Poppins (Latin + Devanagari)
+welcomedb = mongodb.welcome_settings
 
-SS = 3                                               # supersampling for the round photo
-PHOTO_CENTER = (1302, 475)
-PHOTO_RADIUS = 262
-
-# text slots inside the pills: (x, vertical centre, max width)
-SLOT_NAME = (293, 437, 590)
-SLOT_ID   = (233, 590, 400)
-SLOT_USER = (373, 741, 515)
-FONT_SIZE = 42
-
-_notdef_cache = {}
-
-# styled-name lookalikes (small caps, greek, african letters) -> plain letters
-_LOOK = {}
-_LOOK.update(dict(zip("ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡʏᴢ", "ABCDEFGHIJKLMNOPQRSTUVWYZ")))
-_LOOK.update({
-    "ɑ": "a", "ɗ": "d", "η": "n", "ɱ": "m", "σ": "o", "ᴧ": "A", "є": "e", "ʋ": "v", "ɳ": "n",
-    "ɾ": "r", "ƙ": "k", "ʂ": "s", "ɦ": "h", "ʝ": "j", "ɠ": "g", "ɓ": "b", "ƈ": "c", "ʈ": "t",
-    "α": "a", "ι": "i", "ν": "v", "υ": "u", "ρ": "p", "τ": "t", "κ": "k", "ε": "e", "ο": "o",
-    "м": "m", "ɛ": "e", "ʌ": "v", "ɔ": "c", "ᴎ": "N", "ᴙ": "R", "ꭙ": "x", "ɯ": "w", "ʍ": "w",
-})
+# NOTE: must NOT be "cache/" - the bot's send_photo wrapper treats "cache/..." as a song
+# thumbnail and sends text only when /thumb is off in that chat.
+WELCOME_DIR = "welcome_tmp"
+os.makedirs(WELCOME_DIR, exist_ok=True)
+MAX_PER_EVENT = 5          # one "add 20 people" event should not flood the chat
+DELETE_AFTER = 120         # seconds - welcome message is deleted automatically (0 = never)
+_bg_tasks = set()          # keep references so delete tasks are not garbage collected
+_recent = {}               # (chat_id, user_id) -> time; stops double welcome (service msg + member update)
+DEDUPE_SECONDS = 60
 
 
-_FONT_CACHE = {}
+def _claim(chat_id: int, user_id: int) -> bool:
+    """True only for the first of the two join signals (service message / chat_member update)."""
+    now = time.time()
+    for k in [k for k, t in _recent.items() if now - t > DEDUPE_SECONDS]:
+        _recent.pop(k, None)
+    if (chat_id, user_id) in _recent:
+        return False
+    _recent[(chat_id, user_id)] = now
+    return True
 
 
-def _font(size=FONT_SIZE):
-    f = _FONT_CACHE.get(size)
-    if f is None:
-        f = _FONT_CACHE[size] = ImageFont.truetype(FONT_PATH, size)
-    return f
+async def _delete_later(msg, delay):
+    try:
+        await asyncio.sleep(delay)
+        await msg.delete()
+    except Exception:
+        pass
 
 
-def _render_mask(font, ch):
-    img = Image.new("L", (80, 80), 0)
-    ImageDraw.Draw(img).text((10, 10), ch, font=font, fill=255)
-    return img.tobytes()
+def _schedule_delete(msg):
+    if not msg or DELETE_AFTER <= 0:
+        return
+    task = asyncio.create_task(_delete_later(msg, DELETE_AFTER))
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
 
 
-def _has_glyph(font, ch):
-    """True when the font really draws `ch` (not the empty box / nothing)."""
-    key = id(font)
-    if key not in _notdef_cache:
-        _notdef_cache[key] = (_render_mask(font, "\uffff"), _render_mask(font, " "))
-    notdef, blank = _notdef_cache[key]
-    m = _render_mask(font, ch)
-    return m != notdef and (m != blank or ch.isspace())
+async def _is_on(chat_id: int) -> bool:
+    try:
+        data = await welcomedb.find_one({"chat_id": chat_id})
+    except Exception:
+        return True
+    return data.get("on", True) if data else True
 
 
-def clean_text(text, font=None):
-    """Keep only characters the font can draw (fancy unicode -> plain letters when possible)."""
-    font = font or _font()
-    out = []
-    for ch in str(text or ""):
-        if ch in "\u200b\u200c\u200d\ufe0f\u200e\u200f":
-            continue
-        if ch.isspace():
-            out.append(" ")
-        elif _has_glyph(font, ch):
-            out.append(ch)
-        elif ch in _LOOK and _has_glyph(font, _LOOK[ch]):
-            out.append(_LOOK[ch])
-        else:
-            for sub in unicodedata.normalize("NFKD", ch):
-                if not unicodedata.combining(sub) and not sub.isspace() and _has_glyph(font, sub):
-                    out.append(sub)
-    return " ".join("".join(out).split()).strip()
+async def _set_on(chat_id: int, value: bool):
+    await welcomedb.update_one({"chat_id": chat_id}, {"$set": {"on": value}}, upsert=True)
 
 
-def _fit(text, font, max_w):
-    if font.getlength(text) <= max_w:
-        return text
-    for i in range(len(text) - 1, 0, -1):
-        cand = text[:i].rstrip() + "..."
-        if font.getlength(cand) <= max_w:
-            return cand
-    return "..."
+async def _is_admin(message: Message) -> bool:
+    if not message.from_user:                       # anonymous admin
+        return bool(message.sender_chat and message.sender_chat.id == message.chat.id)
+    uid = message.from_user.id
+    if uid == OWNER_ID or uid in SUDOERS:
+        return True
+    try:
+        m = await app.get_chat_member(message.chat.id, uid)
+        return m.status in (ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR)
+    except Exception:
+        return False
 
 
-def _round_photo(img, radius):
-    size = radius * 2
-    img = ImageOps.fit(img.convert("RGB"), (size, size), Image.LANCZOS)
-    mask = Image.new("L", (size * SS, size * SS), 0)
-    ImageDraw.Draw(mask).ellipse([0, 0, size * SS - 1, size * SS - 1], fill=255)
-    mask = mask.resize((size, size), Image.LANCZOS)
-    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    out.paste(img, (0, 0))
-    out.putalpha(mask)
-    return out
+async def _download_photo(user):
+    """Profile photo -> local path, or None."""
+    stamp = int(time.time() * 1000)
+    path = os.path.join(WELCOME_DIR, f"pf_{user.id}_{stamp}.jpg")
+    try:
+        if user.photo:
+            got = await app.download_media(user.photo.big_file_id, file_name=path)
+            if got:
+                return got
+    except Exception:
+        pass
+    try:
+        async for p in app.get_chat_photos(user.id, limit=1):
+            got = await app.download_media(p.file_id, file_name=path)
+            if got:
+                return got
+    except Exception:
+        pass
+    return None
 
 
-def _avatar(initial):
-    """Fallback when the user has no profile photo."""
-    size = PHOTO_RADIUS * 2
-    img = Image.new("RGB", (size, size))
-    d = ImageDraw.Draw(img)
-    for y in range(size):                              # simple vertical gradient
-        t = y / size
-        d.line([(0, y), (size, y)], fill=(int(40 + 60 * t), int(90 + 70 * t), int(200 - 30 * t)))
-    f = _font(260)
-    d.text((size / 2, size / 2), (initial or "?")[:1].upper(), font=f, fill=(255, 255, 255), anchor="mm")
-    return img
-
-
-def welcomepic(photo_path, name, user_id, username, out_path):
-    """Render the welcome card to out_path and return it. Never raises on bad text sizes."""
-    bg = Image.open(TEMPLATE).convert("RGBA")
-    font = _font()
-
-    # ---- photo ----
-    photo = None
-    if photo_path and os.path.exists(photo_path):
-        try:
-            photo = Image.open(photo_path)
-            photo.load()
-        except Exception:
-            photo = None
-    safe_name = clean_text(name, font) or "User"
-    if photo is None:
-        photo = _avatar(safe_name[:1])
-    rp = _round_photo(photo, PHOTO_RADIUS)
-    cx, cy = PHOTO_CENTER
-    bg.paste(rp, (cx - PHOTO_RADIUS, cy - PHOTO_RADIUS), rp)
-
-    # ---- text ----
-    uname = clean_text(str(username or "").lstrip("@"), font) or "No Username"
-    items = (
-        (SLOT_NAME, safe_name),
-        (SLOT_ID, str(user_id)),
-        (SLOT_USER, uname),
+def _caption(user, chat, count):
+    full = " ".join(x for x in (user.first_name, user.last_name) if x).strip() or "User"
+    name = f'<a href="tg://user?id={user.id}">{html.escape(full)}</a>'
+    title = html.escape((chat.title or "ᴛʜɪs ᴄʜᴀᴛ")[:40])
+    uname = f"@{user.username}" if user.username else "ɴᴏ ᴜsᴇʀɴᴀᴍᴇ"
+    body = (
+        "🦚❁—✦ ʀᴀᴅʜᴇ ʀᴀᴅʜᴇ ✦—❁🦚\n"
+        f"ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ {title} 💗💌🪈\n"
+        "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        f"🌸 ɴᴀᴍᴇ ➪ {name}\n"
+        f"🦋 ɪᴅ ➪ <code>{user.id}</code>\n"
+        f"💙 ᴜsᴇʀ ➪ {uname}\n"
+        f"👥 ᴍᴇᴍʙᴇʀs ➪ {count}\n"
+        "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        "❁──────✧❁✦❁✧──────❁\n"
+        "🌙 ᴋʀɪsʜɴᴀ ʙʟᴇssɪɴɢs ᴀʟᴡᴀʏs\n"
+        "💫 sᴘʀᴇᴀᴅ ʟᴏᴠᴇ ᴇᴠᴇʀʏᴡʜᴇʀᴇ\n"
+        "🦚 ✧ ᴊᴀɪ sʜʀᴇᴇ ᴋʀɪsʜɴᴀ ✧ 🦚"
     )
-    draw = ImageDraw.Draw(bg, "RGBA")
-    for (x, cy_, max_w), text in items:
-        text = _fit(text, font, max_w)
-        draw.text((x + 1, cy_ + 2), text, font=font, fill=(0, 50, 130, 70), anchor="lm")     # soft shadow
-        draw.text((x, cy_), text, font=font, fill=(255, 255, 255, 255), anchor="lm")
+    return f"<b>{body}</b>"          # whole message in bold
 
-    bg.convert("RGB").save(out_path, "PNG")
-    return out_path
+
+def _buttons(user, with_view=True):
+    rows = []
+    if with_view:
+        link = f"https://t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
+        rows.append([InlineKeyboardButton("🦚 ᴠɪᴇᴡ ɴᴇᴡ ᴍᴇᴍʙᴇʀ 🦚", url=link)])
+    bot_user = getattr(app, "username", None)
+    if bot_user:
+        rows.append([InlineKeyboardButton("🪈 ᴋɪᴅɴᴀᴘ ᴍᴇ 🪈", url=f"https://t.me/{bot_user}?startgroup=true")])
+    return InlineKeyboardMarkup(rows) if rows else None
+
+
+async def _send(chat_id, caption, user, image=None):
+    """Send image (or plain text when image is None). Retries without the profile button
+    for users whose privacy settings reject tg://user buttons."""
+    for with_view in (True, False):
+        try:
+            if image:
+                return await app.send_photo(chat_id, photo=image, caption=caption,
+                                            reply_markup=_buttons(user, with_view), parse_mode=ParseMode.HTML)
+            return await app.send_message(chat_id, caption, reply_markup=_buttons(user, with_view),
+                                          parse_mode=ParseMode.HTML, disable_web_page_preview=True)
+        except Exception as e:
+            if with_view and "BUTTON" in str(e).upper():
+                continue
+            raise
+
+
+async def _send_welcome(chat, user, report_to: Message = None):
+    """report_to=<Message> (used by /welcome test) also posts any error into the chat."""
+    try:
+        count = await app.get_chat_members_count(chat.id)
+    except Exception:
+        count = "?"
+    caption = _caption(user, chat, count)
+
+    photo_path = await _download_photo(user)
+    card_path = os.path.join(WELCOME_DIR, f"welcome_{chat.id}_{user.id}_{int(time.time() * 1000)}.png")
+    card = None
+    errors = []
+    sent = None
+    try:
+        loop = asyncio.get_running_loop()
+        full = " ".join(x for x in (user.first_name, user.last_name) if x)
+        card = await loop.run_in_executor(None, welcomepic, photo_path, full, user.id, user.username, card_path)
+    except Exception as e:
+        errors.append(f"card: {type(e).__name__}: {e}")
+        LOGGER(__name__).error(f"[WELCOME] card failed:\n{traceback.format_exc()}")
+
+    try:
+        try:
+            sent = await _send(chat.id, caption, user, card or photo_path)     # 1) card PNG (or profile photo if card failed)
+        except Exception as e:
+            errors.append(f"send card: {type(e).__name__}: {e}")
+            LOGGER(__name__).error(f"[WELCOME] send card failed in {chat.id}: {type(e).__name__}: {e}")
+            try:
+                sent = await _send(chat.id, caption, user, photo_path)        # 2) plain profile photo
+            except Exception as e2:
+                errors.append(f"send photo: {type(e2).__name__}: {e2}")
+                sent = await _send(chat.id, caption, user, None)              # 3) text only
+    except Exception as e3:
+        errors.append(f"send text: {type(e3).__name__}: {e3}")
+        LOGGER(__name__).error(f"[WELCOME] send failed in {chat.id}: {type(e3).__name__}: {e3}")
+    finally:
+        for f in (photo_path, card):
+            try:
+                if f and os.path.exists(f):
+                    os.remove(f)
+            except Exception:
+                pass
+    _schedule_delete(sent)               # auto-delete after DELETE_AFTER seconds
+    if report_to is not None and errors:
+        try:
+            await report_to.reply_text("⚠️ welcome debug:\n" + "\n".join(html.escape(x)[:300] for x in errors),
+                                     parse_mode=ParseMode.HTML)
+        except Exception:
+            pass
+
+
+@app.on_message(filters.new_chat_members & filters.group, group=7)
+async def welcome_new_members(_, message: Message):
+    try:
+        if not await _is_on(message.chat.id):
+            return
+        me_id = getattr(app, "id", None) or (app.me.id if getattr(app, "me", None) else None)
+        users = [u for u in message.new_chat_members if not u.is_bot and u.id != me_id][:MAX_PER_EVENT]
+        LOGGER(__name__).info(f"[WELCOME] service msg in {message.chat.id}: {[u.id for u in users]}")
+        for u in users:
+            if _claim(message.chat.id, u.id):
+                await _send_welcome(message.chat, u)
+    except Exception:
+        LOGGER(__name__).error(f"[WELCOME] handler error:\n{traceback.format_exc()}")
+
+
+# Fallback: Telegram does NOT send the "X joined" service message in big groups, when joins are
+# hidden, or when the user came through a join request. A bot that is admin still gets this update.
+@app.on_chat_member_updated(group=8)
+async def welcome_member_update(_, update: ChatMemberUpdated):
+    try:
+        if update.chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP):
+            return
+        new, old = update.new_chat_member, update.old_chat_member
+        if not new or not new.user or new.status != ChatMemberStatus.MEMBER:
+            return
+        if old and old.status not in (ChatMemberStatus.LEFT, ChatMemberStatus.BANNED):
+            return                                   # promoted / restricted / unrestricted, not a join
+        user = new.user
+        me_id = getattr(app, "id", None) or (app.me.id if getattr(app, "me", None) else None)
+        if user.is_bot or user.id == me_id:
+            return
+        if not await _is_on(update.chat.id):
+            return
+        LOGGER(__name__).info(f"[WELCOME] member update in {update.chat.id}: {user.id}")
+        if _claim(update.chat.id, user.id):
+            await _send_welcome(update.chat, user)
+    except Exception:
+        LOGGER(__name__).error(f"[WELCOME] member-update error:\n{traceback.format_exc()}")
+
+
+@app.on_message(filters.command(["welcome"]) & filters.group & ~BANNED_USERS)
+async def welcome_toggle(_, message: Message):
+    if not await _is_admin(message):
+        return await message.reply_text("ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
+    arg = message.command[1].lower() if len(message.command) > 1 else ""
+    if arg in ("on", "enable", "yes"):
+        await _set_on(message.chat.id, True)
+        return await message.reply_text("✅ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ ᴇɴᴀʙʟᴇᴅ.")
+    if arg in ("off", "disable", "no"):
+        await _set_on(message.chat.id, False)
+        return await message.reply_text("❌ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ ᴅɪsᴀʙʟᴇᴅ.")
+    if arg == "test":
+        if not message.from_user:
+            return await message.reply_text("ᴛᴇsᴛ ɴᴇᴇᴅs ᴀ ɴᴏʀᴍᴀʟ (ɴᴏᴛ ᴀɴᴏɴʏᴍᴏᴜs) ᴀᴅᴍɪɴ.")
+        _claim(message.chat.id, message.from_user.id)
+        return await _send_welcome(message.chat, message.from_user, report_to=message)
+    state = "ᴏɴ ✅" if await _is_on(message.chat.id) else "ᴏғғ ❌"
+    await message.reply_text(
+        f"ᴡᴇʟᴄᴏᴍᴇ ɪs {state}\n\nᴜsᴀɢᴇ: <code>/welcome on</code> | <code>/welcome off</code> | <code>/welcome test</code>",
+        parse_mode=ParseMode.HTML,
+    )
