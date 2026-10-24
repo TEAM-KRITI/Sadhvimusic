@@ -396,6 +396,139 @@ async def _fetch_title_via_oembed(videoid: str):
     return None
 
 
+# ═════════════════════════ Glass "now playing" card (1920x1080) ═════════════════════════
+GW, GH = 1920, 1080
+G_CARD = (460, 190, 1460, 890)
+G_CARD_R = 70
+G_ART = (535, 275, 810, 550)
+G_TXT_X = 836
+G_TXT_MAX = 1385 - 836
+G_BAR_X0, G_BAR_X1, G_BAR_Y = 611, 1300, 640
+G_VOL_X0, G_VOL_X1, G_VOL_Y = 577, 1330, 827
+BITRATE_TEXT = "140 KBPS"       # bottom-right pill
+SHOW_CREDITS = False            # True = DEV_TEXT / OWNER_TEXT bhi dikhao
+
+
+def _g_rr_mask(box, radius, size=(GW, GH)):
+    m = Image.new("L", (size[0] * SS, size[1] * SS), 0)
+    ImageDraw.Draw(m).rounded_rectangle([v * SS for v in box], radius=radius * SS, fill=255)
+    return m.resize(size, Image.LANCZOS)
+
+
+def _star_points(cx, cy, ro, ri):
+    import math
+    pts = []
+    for i in range(10):
+        r = ro if i % 2 == 0 else ri
+        a = -math.pi / 2 + i * math.pi / 5
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def _draw_glass_player(src, title, sub, t_left, t_right, progress, is_live=False):
+    """Dark glass card over the blurred cover: art + title + progress + controls + volume."""
+    # ---- background: cover blurred + darkened ----
+    small = ImageOps.fit(src.convert("RGB"), (480, 270), Image.LANCZOS).filter(ImageFilter.GaussianBlur(10))
+    bg = small.resize((GW, GH), Image.BICUBIC).convert("RGBA")
+    bg = ImageEnhance.Brightness(bg).enhance(0.62)
+
+    # ---- glass card: darker + extra soft ----
+    cm = _g_rr_mask(G_CARD, G_CARD_R)
+    card = bg.filter(ImageFilter.GaussianBlur(30))
+    card = ImageEnhance.Brightness(card).enhance(0.34)
+    bg = Image.composite(card, bg, cm)
+
+    # ---- vector bits (bars, icons) drawn at SS x ----
+    ox, oy = 440, 170
+    rw, rh = 1040, 740
+    ov = Image.new("RGBA", (rw * SS, rh * SS), (0, 0, 0, 0))
+    od = ImageDraw.Draw(ov)
+
+    def S(v, o): return int((v - o) * SS)
+    def X(v): return S(v, ox)
+    def Y(v): return S(v, oy)
+
+    fill_c  = (255, 255, 255, 175)
+    track_c = (255, 255, 255, 55)
+    icon_c  = (255, 255, 255, 235)
+    dim_c   = (255, 255, 255, 105)
+
+    # progress bar
+    px = G_BAR_X0 + (G_BAR_X1 - G_BAR_X0) * max(0.0, min(1.0, progress))
+    od.rounded_rectangle([X(G_BAR_X0), Y(G_BAR_Y - 7), X(G_BAR_X1), Y(G_BAR_Y + 7)], radius=7 * SS, fill=track_c)
+    if px - G_BAR_X0 > 1:
+        od.rounded_rectangle([X(G_BAR_X0), Y(G_BAR_Y - 7), X(max(px, G_BAR_X0 + 14)), Y(G_BAR_Y + 7)], radius=7 * SS, fill=fill_c)
+    if not is_live:
+        od.rectangle([X(1320), Y(G_BAR_Y - 1), X(1334), Y(G_BAR_Y + 2)], fill=icon_c)   # "-" before remaining time
+
+    # controls row
+    cy = 733
+    od.polygon([(X(x), Y(y)) for x, y in _star_points(568, cy - 2, 31, 13)], fill=dim_c)           # star
+    for base in (722, 764):                                                                       # rewind
+        od.polygon([(X(base + 44), Y(cy - 25)), (X(base + 44), Y(cy + 25)), (X(base), Y(cy))], fill=icon_c)
+    for dx in (934, 972):                                                                         # pause
+        od.rounded_rectangle([X(dx), Y(cy - 38), X(dx + 22), Y(cy + 38)], radius=5 * SS, fill=icon_c)
+    for base in (1120, 1162):                                                                     # forward
+        od.polygon([(X(base), Y(cy - 25)), (X(base), Y(cy + 25)), (X(base + 44), Y(cy))], fill=icon_c)
+    # earbuds icon
+    for sgn in (-1, 1):
+        ex = 1357 + sgn * 17
+        od.ellipse([X(ex - 11), Y(cy - 24), X(ex + 11), Y(cy + 2)], fill=dim_c)
+        od.rounded_rectangle([X(ex - 4 + sgn * 6), Y(cy - 6), X(ex + 4 + sgn * 6), Y(cy + 26)], radius=4 * SS, fill=dim_c)
+
+    # volume row
+    vk = G_VOL_X0 + (G_VOL_X1 - G_VOL_X0) * 0.36
+    od.rounded_rectangle([X(G_VOL_X0), Y(G_VOL_Y - 8), X(G_VOL_X1), Y(G_VOL_Y + 8)], radius=8 * SS, fill=track_c)
+    od.rounded_rectangle([X(G_VOL_X0), Y(G_VOL_Y - 8), X(vk), Y(G_VOL_Y + 8)], radius=8 * SS, fill=fill_c)
+    sx = 521   # low speaker
+    od.polygon([(X(sx), Y(G_VOL_Y - 7)), (X(sx + 8), Y(G_VOL_Y - 7)), (X(sx + 20), Y(G_VOL_Y - 16)),
+                (X(sx + 20), Y(G_VOL_Y + 16)), (X(sx + 8), Y(G_VOL_Y + 7)), (X(sx), Y(G_VOL_Y + 7))], fill=dim_c)
+    sx = 1361  # loud speaker
+    od.polygon([(X(sx), Y(G_VOL_Y - 7)), (X(sx + 8), Y(G_VOL_Y - 7)), (X(sx + 20), Y(G_VOL_Y - 16)),
+                (X(sx + 20), Y(G_VOL_Y + 16)), (X(sx + 8), Y(G_VOL_Y + 7)), (X(sx), Y(G_VOL_Y + 7))], fill=dim_c)
+    for r in (10, 18, 26):
+        od.arc([X(sx + 22 - r), Y(G_VOL_Y - r), X(sx + 22 + r), Y(G_VOL_Y + r)], -48, 48, fill=dim_c, width=3 * SS)
+
+    ov = ov.resize((rw, rh), Image.LANCZOS)
+    bg.alpha_composite(ov, (ox, oy))
+
+    # ---- album art ----
+    ax0, ay0, ax1, ay1 = G_ART
+    am = _g_rr_mask(G_ART, 36)
+    sh = Image.new("RGBA", (GW, GH), (0, 0, 0, 0))
+    sh.putalpha(am.filter(ImageFilter.GaussianBlur(16)).point(lambda v: int(v * 0.55)))
+    sh2 = Image.new("RGBA", (GW, GH), (0, 0, 0, 0))
+    sh2.paste(sh, (0, 10))
+    bg = Image.alpha_composite(bg, sh2)
+    art = ImageOps.fit(src.convert("RGBA"), (ax1 - ax0, ay1 - ay0), Image.LANCZOS)
+    bg.paste(art, (ax0, ay0), am.crop((ax0, ay0, ax1, ay1)))
+
+    # ---- text ----
+    f_title = ImageFont.truetype(FONT_INFO, 40)
+    f_sub   = ImageFont.truetype(FONT_INFO, 27)
+    f_time  = ImageFont.truetype(FONT_INFO, 26)
+    f_pill  = ImageFont.truetype(FONT_INFO, 24)
+    draw = ImageDraw.Draw(bg, "RGBA")
+
+    t = trim_text(_clean_title(title) or "Now Playing", f_title, f_title, G_TXT_MAX)
+    draw.text((G_TXT_X, 382), t, font=f_title, fill=(255, 255, 255, 255), anchor="lm")
+    sb = trim_text(_clean_title(sub) or "YouTube", f_sub, f_sub, G_TXT_MAX)
+    draw.text((G_TXT_X + 2, 438), sb, font=f_sub, fill=(255, 255, 255, 235), anchor="lm")
+
+    draw.text((531, 639), t_left, font=f_time, fill=(255, 255, 255, 120), anchor="lm")
+    draw.text((1385, 640), t_right, font=f_time, fill=(255, 255, 255, 235), anchor="rm")
+
+    # ---- bitrate pill (bottom-right) ----
+    pl = Image.new("RGBA", (GW * SS, GH * SS), (0, 0, 0, 0))
+    ImageDraw.Draw(pl).rounded_rectangle([1718 * SS, 988 * SS, 1865 * SS, 1025 * SS], radius=19 * SS,
+                                         fill=(14, 14, 14, 235))
+    bg = Image.alpha_composite(bg, pl.resize((GW, GH), Image.LANCZOS))
+    draw = ImageDraw.Draw(bg, "RGBA")
+    draw.text(((1718 + 1865) / 2, 1007), BITRATE_TEXT, font=f_pill, fill=(255, 255, 255, 255), anchor="mm")
+    return bg
+
+
+
 async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = True, user_name=None) -> str:
     # user_name = person who requested the song (plain name or markdown/html mention)
     print(f"📥 get_thumb called with videoid: {videoid}")
@@ -442,33 +575,27 @@ async def get_thumb(videoid: str, progress_percent: int = 0, use_cache: bool = T
     try:
         src = Image.open(thumb_path).convert("RGBA")
 
-        # blurred, darkened background from the song cover
-        bg = Image.new("RGBA", (W, H), (0, 0, 0, 255))   # pure black background
-
-        accent2 = _accent2(accent)
-        sub = f"{channel} — {views_text}"
         pct = max(0, min(100, int(progress_percent or 0))) / 100.0
         total_s = _to_seconds(duration_text)
-        t_left = _fmt_time(total_s * pct) if total_s else "0:00"
-        t_right = duration_text
+        if is_live or not total_s:
+            t_left, t_right = "LIVE", ""
+        else:
+            t_left = _fmt_time(total_s * pct)
+            t_right = _fmt_time(max(0, total_s - total_s * pct))
 
-        bg = _draw_player(
-            bg, accent, accent2, src, title, sub, _next_title_color(accent), None,
-            t_left, t_right, pct if total_s else 0.0,
+        bg = _draw_glass_player(
+            src, title, channel, t_left, t_right, pct if total_s else 0.0, is_live=bool(is_live or not total_s),
         )
 
-        # credits (fixed yellow)
-        draw = ImageDraw.Draw(bg)
-        credit_font = ImageFont.truetype(FONT_INFO, 24)
-        owner_font  = ImageFont.truetype(FONT_INFO, 25)
-        dw = credit_font.getlength(DEV_TEXT)
-        draw.text((W - 25 - dw + 1, 30 + 1), DEV_TEXT, font=credit_font, fill=(0, 0, 0, 140))
-        draw.text((W - 25 - dw, 30), DEV_TEXT, font=credit_font, fill=CREDIT_COLOR)
-        draw.text((25 + 1, 672 + 1), OWNER_TEXT, font=owner_font, fill=(0, 0, 0, 140))
-        draw.text((25, 672), OWNER_TEXT, font=owner_font, fill=CREDIT_COLOR)
+        if SHOW_CREDITS:
+            draw = ImageDraw.Draw(bg)
+            credit_font = ImageFont.truetype(FONT_INFO, 28)
+            dw = credit_font.getlength(DEV_TEXT)
+            draw.text((GW - 30 - dw, 30), DEV_TEXT, font=credit_font, fill=CREDIT_COLOR)
+            draw.text((30, GH - 60), OWNER_TEXT, font=credit_font, fill=CREDIT_COLOR)
 
         bg.convert("RGB").save(cache_path, "PNG")
-        print(f"✓ Thumbnail saved with colour RGB{accent}")
+        print("✓ Thumbnail saved")
 
     except Exception as e:
         import traceback
