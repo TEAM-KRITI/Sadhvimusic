@@ -34,13 +34,21 @@ AB_MIN_GAP_MIN = AB_INTERVAL_MIN  # itne minute ke andar dobara auto-broadcast n
 # Photo ka link (ya file_id). Photo nahi chahiye to "" kar do.
 AB_PHOTO = config.START_IMG_URL
 
-# Message (HTML allowed: <b>bold</b>, <i>italic</i>, <a href="...">link</a>)
-AB_TEXT = """<b>🎵 ᴍᴜsɪᴄ ʙᴏᴛ ᴋᴀ ᴍᴀᴢᴀ ʟᴏ!</b>
+# "BUY TG ACCOUNT FROM HERE" button ka link - yahan apna link daalo
+AB_BUY_URL = f"https://t.me/{config.OWNER_USERNAME}"
 
-ʜɪɢʜ ǫᴜᴀʟɪᴛʏ ɢᴀᴀɴᴇ ɢʀᴏᴜᴘ ᴠᴄ ᴍᴇ ʙᴀᴊᴀᴏ 🔥
-
-» ʏᴏᴜᴛᴜʙᴇ, sᴘᴏᴛɪғʏ, ᴀᴘᴘʟᴇ, sᴏᴜɴᴅᴄʟᴏᴜᴅ sᴜᴘᴘᴏʀᴛ
-» ʙᴀs /play ʟɪᴋʜᴏ ᴀᴜʀ ᴇɴᴊᴏʏ ᴋᴀʀᴏ"""
+# Message - poora BOLD (HTML: <b>bold</b>, <blockquote>, <blockquote expandable>)
+AB_TEXT = (
+    "<blockquote><b>🎧 ʜᴇʏ ᴛʜᴇʀᴇ 👋</b></blockquote>\n"
+    "<blockquote expandable><b>"
+    f"✨ ᴅɪᴅ ʏᴏᴜ ᴋɴᴏᴡ? {config.BOT_NAME}...\n"
+    "ᴅᴇʟɪᴠᴇʀs ᴄʀʏsᴛᴀʟ-ᴄʟᴇᴀʀ, ʜɪ-ʀᴇs ᴍᴜsɪᴄ sᴛʀᴇᴀᴍɪɴɢ ᴡɪᴛʜ ᴢᴇʀᴏ ᴅᴇʟᴀʏ, "
+    "ʀɪɢʜᴛ ɪɴsɪᴅᴇ ʏᴏᴜʀ ᴛᴇʟᴇɢʀᴀᴍ ɢʀᴏᴜᴘs & ᴄʜᴀɴɴᴇʟs 🎵\n\n"
+    "ғʀᴏᴍ 24/7 ɴᴏɴ-sᴛᴏᴘ sᴛʀᴇᴀᴍɪɴɢ ᴛᴏ ᴀ ʙᴜᴛᴛᴇʀ-sᴍᴏᴏᴛʜ ǫᴜᴇᴜᴇ sʏsᴛᴇᴍ, "
+    "ᴇᴠᴇʀʏᴛʜɪɴɢ ɪs ʙᴜɪʟᴛ ᴛᴏ ᴋᴇᴇᴘ ʏᴏᴜʀ ᴠɪʙᴇ ᴀʟɪᴠᴇ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʟᴀɢ 🔥\n\n"
+    "▸ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀɴᴅ ʟᴇᴛ ᴛʜᴇ ᴍᴜsɪᴄ ɴᴇᴠᴇʀ sᴛᴏᴘ 🚀"
+    "</b></blockquote>"
+)
 # ---------------------------------------------------------------
 
 abdb = mongodb.autobroadcast
@@ -80,7 +88,8 @@ def _buttons():
                     "➕ ᴀᴅᴅ ᴍᴇ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ",
                     url=f"https://t.me/{app.username}?startgroup=true",
                 )
-            ]
+            ],
+            [InlineKeyboardButton("🛒 ʙᴜʏ ᴛɢ ᴀᴄᴄᴏᴜɴᴛ ғʀᴏᴍ ʜᴇʀᴇ", url=AB_BUY_URL)],
         ]
     )
 
