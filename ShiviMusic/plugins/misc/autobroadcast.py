@@ -89,7 +89,7 @@ def _buttons():
                     url=f"https://t.me/{app.username}?startgroup=true",
                 )
             ],
-            [InlineKeyboardButton("🛒 sᴏᴜᴘᴘʀᴛ ᴄʜᴀᴛ ᴋɪʀᴛɪ", url=AB_BUY_URL)],
+            [InlineKeyboardButton("🛒 ʙᴜʏ ᴛɢ ᴀᴄᴄᴏᴜɴᴛ ғʀᴏᴍ ʜᴇʀᴇ", url=AB_BUY_URL)],
         ]
     )
 
