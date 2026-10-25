@@ -224,10 +224,10 @@ async def start_pm(client, message: Message, _):
                     f"{message.from_user.mention} "
                     f"ᴊᴜsᴛ sᴛᴀʀᴛᴇᴅ ᴛʜᴇ ʙᴏᴛ.\n\n"
 
-                    f"<b>𝐔꯭s꯭ᴇ꯭ʀ ꯭༭꯭ 𝐈꯭𝐃 :</b> "
+                    f"<b>ᴜsᴇʀ ɪᴅ :</b> "
                     f"<code>{message.from_user.id}</code>\n"
 
-                    f"<b>𝐔꯭s꯭ᴇ꯭ʀ꯭ɴ꯭ᴀ꯭ᴍ꯭ᴇ :</b> "
+                    f"<b>ᴜsᴇʀɴᴀᴍᴇ :</b> "
                     f"@{message.from_user.username}"
                 ),
             )
