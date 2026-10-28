@@ -11,26 +11,26 @@ from ShiviMusic import app
 
 
 # ==========================================================
-# GUEST MESSAGE
+# ɢᴜєꜱᴛ ᴍєꜱꜱᴀɢє
 # ==========================================================
 
 ADD_ME_PROMO_TEXT = (
     "❖ <a href=\"https://t.me/{username}\">˹{name}˼ ♪</a> — "
-    "<b>𝐘꯭ᴏ꯭ᴜ꯭ʀ 𝐏꯭ʀ꯭ᴇ꯭ᴍ꯭ɪ꯭ᴜ꯭ᴍ 𝐌꯭ᴜ꯭s꯭ɪ꯭ᴄ 𝐒꯭ᴛ꯭ʀ꯭ᴇ꯭ᴀ꯭ᴍ꯭ᴇ꯭ʀ 𝐁꯭ᴏ꯭ᴛ 🍂</b>\n\n"
+    "<b>ʏᴏᴜʀ ᴘʀєᴍɪᴜᴍ ᴍᴜꜱɪᴄ ꜱᴛʀєᴀᴍєʀ ʙᴏᴛ 🍂</b>\n\n"
 
     "<blockquote>"
-    "<b>▸ 𝐅꯭ᴀ꯭s꯭ᴛ ꯭༭꯭ • 𝐋꯭ᴀ꯭ɢ ꯭༭꯭ 𝐅꯭ʀ꯭ᴇ꯭ᴇ ꯭༭꯭ • 𝐍꯭ᴏ ꯭༭꯭ 𝐀꯭ᴅ꯭s 🍂</b>\n"
-    "<b>▸ 𝐀꯭ᴜ꯭ᴛ꯭ᴏ-𝐏꯭ʟ꯭ᴀ꯭ʏ ꯭༭꯭ • 𝐀꯭ᴜ꯭ᴅ꯭ɪ꯭ᴏ ꯭༭꯭ • 𝐕꯭ɪ꯭ᴅ꯭ᴇ꯭ᴏ 🎥</b>"
+    "<b>▸ ꜰᴀꜱᴛ ༭ • ʟᴀɢ ༭ ꜰʀєє ༭ • ɴᴏ ༭ ᴀᴅꜱ 🍂</b>\n"
+    "<b>▸ ᴀᴜᴛᴏ-ᴘʟᴀʏ ༭ • ᴀᴜᴅɪᴏ ༭ • ᴠɪᴅєᴏ 🎥</b>"
     "</blockquote>\n\n"
 
-    "<b>◼️ 𝐀꯭ᴅ꯭ᴅ</b> "
+    "<b>◼️ ᴀᴅᴅ</b> "
     "<a href=\"https://t.me/{username}\">˹{name}˼ ♪</a> "
-    "<b>𝐓꯭ᴏ 𝐘꯭ᴏ꯭ᴜ꯭ʀ 𝐆꯭ʀ꯭ᴏ꯭ᴜ꯭ᴘ ꯭༭꯭ & 𝐄꯭ɴ꯭ᴊ꯭ᴏ꯭ʏ 𝐇꯭ɪ꯭ɢ꯭ʜ 𝐐꯭ᴜ꯭ᴀ꯭ʟ꯭ɪ꯭ᴛ꯭ʏ 𝐒꯭ᴏ꯭ɴ꯭ɢ ❄️</b>"
+    "<b>ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ༭ & єɴᴊᴏʏ ʜɪɢʜ ǫᴜᴀʟɪᴛʏ ꜱᴏɴɢ ❄️</b>"
 )
 
 
 # ==========================================================
-# BUTTONS
+# ʙᴜᴛᴛᴏɴꜱ
 # ==========================================================
 
 def _add_me_markup(username: str):
@@ -39,7 +39,7 @@ def _add_me_markup(username: str):
         [
             [
                 InlineKeyboardButton(
-                    text="✙ 𝐀꯭ᴅ꯭ᴅ 𝐌꯭ᴇ ꯭༭꯭ 𝐈꯭ɴ 𝐘꯭ᴏ꯭ᴜ꯭ʀ 𝐆꯭ʀ꯭ᴏ꯭ᴜ꯭ᴘ ✙",
+                    text="✙ ᴀᴅᴅ ᴍє ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ✙",
                     url=f"https://t.me/{username}?startgroup=true",
                 )
             ]
@@ -48,7 +48,7 @@ def _add_me_markup(username: str):
 
 
 # ==========================================================
-# GUEST MODE
+# ɢᴜєꜱᴛ ᴍᴏᴅє
 # ==========================================================
 
 @app.on_guest_message()
@@ -66,7 +66,7 @@ async def guest_username_mention(_, message: Message):
     try:
 
         # --------------------------------------------------
-        # GET BOT INFORMATION
+        # ɢєᴛ ʙᴏᴛ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ
         # --------------------------------------------------
 
         me = await app.get_me()
@@ -84,7 +84,7 @@ async def guest_username_mention(_, message: Message):
             return
 
         # --------------------------------------------------
-        # CREATE MESSAGE
+        # ᴄʀєᴀᴛє ᴍєꜱꜱᴀɢє
         # --------------------------------------------------
 
         promo_text = ADD_ME_PROMO_TEXT.format(
@@ -93,18 +93,18 @@ async def guest_username_mention(_, message: Message):
         )
 
         # --------------------------------------------------
-        # KEYBOARD
+        # ᴋєʏʙᴏᴀʀᴅ
         # --------------------------------------------------
 
         keyboard = _add_me_markup(username)
 
         # --------------------------------------------------
-        # INLINE RESULT
+        # ɪɴʟɪɴє ʀєꜱᴜʟᴛ
         # --------------------------------------------------
 
         result = InlineQueryResultArticle(
-            title=f"❖ 𝐌꯭ᴜ꯭s꯭ɪ꯭ᴄ 𝐁꯭ᴏ꯭ᴛ ♪",
-            description=f"@{username} • 𝐀꯭ᴅ꯭ᴅ 𝐌꯭ᴇ ꯭༭꯭ 𝐈꯭ɴ 𝐘꯭ᴏ꯭ᴜ꯭ʀ 𝐆꯭ʀ꯭ᴏ꯭ᴜ꯭ᴘ 🎶",
+            title="❖ ᴍᴜꜱɪᴄ ʙᴏᴛ ♪",
+            description=f"@{username} • ᴀᴅᴅ ᴍє ༭ ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ 🎶",
             thumb_url="https://files.catbox.moe/qv2ob4.jpg",
 
             input_message_content=InputTextMessageContent(
@@ -117,7 +117,7 @@ async def guest_username_mention(_, message: Message):
         )
 
         # --------------------------------------------------
-        # ANSWER GUEST QUERY
+        # ᴀɴꜱᴡєʀ ɢᴜєꜱᴛ ǫᴜєʀʏ
         # --------------------------------------------------
 
         await app.answer_guest_query(
