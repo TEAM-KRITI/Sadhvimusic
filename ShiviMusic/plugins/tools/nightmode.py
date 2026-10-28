@@ -224,7 +224,7 @@ async def start_nightmode():
                     f"**🆔 `{chat_id}`**\n\n"
 
                     "**⚡ ᴘᴏᴡєʀєᴅ ʙʏ : "
-                    "[ᴋɪʀᴛɪ ᴍᴜꜱɪᴄ](https://t.me/annu_updates)**"
+                    "[ᴋɪʀᴛɪ ᴍᴜꜱɪᴄ](https://t.me/kirti_bots)**"
                 ),
 
                 parse_mode=enums.ParseMode.MARKDOWN,
@@ -275,7 +275,7 @@ async def close_nightmode():
                     f"**🆔 `{chat_id}`**\n\n"
 
                     "**⚡ ᴘᴏᴡєʀєᴅ ʙʏ : "
-                    "[ᴋɪʀᴛɪ ᴍᴜꜱɪᴄ](https://t.me/annu_updates)**"
+                    "[ᴋɪʀᴛɪ ᴍᴜꜱɪᴄ](https://t.me/kirti_bots)**"
                 ),
 
                 parse_mode=enums.ParseMode.MARKDOWN,
