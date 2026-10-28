@@ -3,7 +3,7 @@
 # 
 # This source code is under MIT License 📜
 # ❌ Unauthorized forking, importing, or using this code
-#    without giving proper credit will result in legal action ⚠️
+#    without giving proper credit will result in legal action ⚠️
 # 
 # 📩 DM for permission : @TheSigmaCoder
 # ===========================================================
@@ -28,18 +28,18 @@ from config import BANNED_USERS
 
 async def send_startup_message():
     caption = (
-        "❖ <b>BOT STARTED SUCCESSFULLY</b> ✅\n\n"
-        f"• <b>BOT :-</b> {app.mention}\n"
-        f"• <b>PLUGINS :-</b> {len(ALL_MODULES)} LOADED\n"
-        f"• <b>PYROGRAM :-</b> <code>{pyrogram.__version__}</code>\n"
-        f"• <b>PYTHON :-</b> <code>{platform.python_version()}</code>\n\n"
-        f"» <b>POWERED BY :-</b> <a href='{config.SUPPORT_CHANNEL}'>KIRTI-BOTS</a>"
+        "❖ <b>ʙᴏᴛ ꜱᴛᴀʀᴛєᴅ ꜱᴜᴄᴄєꜱꜱꜰᴜʟʟʏ</b> ✅\n\n"
+        f"• <b>ʙᴏᴛ :-</b> {app.mention}\n"
+        f"• <b>ᴘʟᴜɢɪɴꜱ :-</b> {len(ALL_MODULES)} ʟᴏᴀᴅєᴅ\n"
+        f"• <b>ᴘʏʀᴏɢʀᴀᴍ :-</b> <code>{pyrogram.__version__}</code>\n"
+        f"• <b>ᴘʏᴛʜᴏɴ :-</b> <code>{platform.python_version()}</code>\n\n"
+        f"» <b>ᴘᴏᴡєʀєᴅ ʙʏ :-</b> <a href='{config.SUPPORT_CHANNEL}'>ᴋɪʀᴛɪ-ʙᴏᴛꜱ</a>"
     )
     markup = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "➕ ADD ME IN YOUR GROUP ➕",
+                    "➕ ᴀᴅᴅ ᴍє ɪɴ ʏᴏᴜʀ ɢʀᴏᴜᴘ ➕",
                     url=f"https://t.me/{app.username}?startgroup=true",
                 )
             ]
@@ -73,7 +73,7 @@ async def init():
         and not config.STRING4
         and not config.STRING5
     ):
-        LOGGER(__name__).error("𝗦𝗧𝗥𝗜𝗡𝗚 𝗦𝗘𝗦𝗦𝗜𝗢𝗡 𝗡𝗢𝗧 𝗙𝗜𝗟𝗟𝗘𝗗 🙃, 𝗣𝗟𝗘𝗔𝗦𝗘 𝗙𝗜𝗟𝗟 𝗔 𝗣𝗬𝗥𝗢𝗚𝗥𝗔𝗠 𝗦𝗘𝗦𝗦𝗜𝗢𝗡...🙂")
+        LOGGER(__name__).error("ꜱᴛʀɪɴɢ ꜱєꜱꜱɪᴏɴ ɴᴏᴛ ꜰɪʟʟєᴅ 🙃, ᴘʟєᴀꜱє ꜰɪʟʟ ᴀ ᴘʏʀᴏɢʀᴀᴍ ꜱєꜱꜱɪᴏɴ...🙂")
         exit()
     await sudo()
     try:
@@ -88,14 +88,14 @@ async def init():
     await app.start()
     for all_module in ALL_MODULES:
         importlib.import_module("ShiviMusic.plugins" + all_module)
-    LOGGER("ShiviMusic.plugins").info("𝗔𝗟𝗟 𝗣𝗟𝗨𝗚𝗜𝗡𝗦 𝗟𝗢𝗔𝗗𝗘𝗗 𝗦𝗨𝗖𝗖𝗘𝗦𝗦𝗙𝗨𝗟𝗟𝗬....🥳..")
+    LOGGER("ShiviMusic.plugins").info("ᴀʟʟ ᴘʟᴜɢɪɴꜱ ʟᴏᴀᴅєᴅ ꜱᴜᴄᴄєꜱꜱꜰᴜʟʟʏ....🥳..")
     await userbot.start()
     await Shivi.start()
     try:
         await Shivi.stream_call("https://te.legra.ph/file/29f784eb49d230ab62e9e.mp4")
     except NoActiveGroupCall:
         LOGGER("ShiviMusic").error(
-            "𝗣𝗹𝗭 𝗦𝗧𝗔𝗥𝗧 𝗬𝗢𝗨𝗥 𝗟𝗢𝗚 𝗚𝗥𝗢𝗨𝗣/𝗖𝗛𝗔𝗡𝗡𝗘𝗟 𝗩𝗢𝗜𝗖𝗘𝗖𝗛𝗔𝗧... 😒\n\n𝗠𝗨𝗦𝗜𝗖 𝗕𝗢𝗧 𝗦𝗧𝗢𝗣........🤕"
+            "ᴘʟᴢ ꜱᴛᴀʀᴛ ʏᴏᴜʀ ʟᴏɢ ɢʀᴏᴜᴘ/ᴄʜᴀɴɴєʟ ᴠᴏɪᴄєᴄʜᴀᴛ... 😒\n\nᴍᴜꜱɪᴄ ʙᴏᴛ ꜱᴛᴏᴘ........🤕"
         )
         exit()
     except:
@@ -103,12 +103,12 @@ async def init():
     await Shivi.decorators()
     await send_startup_message()
     LOGGER("ShiviMusic").info(
-        "╔═════ஜ۩۞۩ஜ════╗\n  ☠︎︎ 𝗠𝗔𝗗𝗘 𝗕𝗬 𝗞𝗜𝗥𝗧𝗜 𝗕𝗢𝗧𝗦 ☠︎︎\n╚═════ஜ۩۞۩ஜ════╝"
+        "╔═════ஜ۩۞۩ஜ════╗\n  ☠︎︎ ᴍᴀᴅє ʙʏ ᴋɪʀᴛɪ ʙᴏᴛꜱ ☠︎︎\n╚═════ஜ۩۞۩ஜ════╝"
     )
     await idle()
     await app.stop()
     await userbot.stop()
-    LOGGER("ShiviMusic").info("𝗦𝗧𝗢𝗣 𝗠𝗨𝗦𝗜𝗖 𝗕𝗢𝗧...🥹")
+    LOGGER("ShiviMusic").info("ꜱᴛᴏᴘ ᴍᴜꜱɪᴄ ʙᴏᴛ...🥹")
 
 
 if __name__ == "__main__":
