@@ -95,7 +95,7 @@ NIGHT_MSG_BUTTONS = InlineKeyboardMarkup(
 async def _nightmode(_, message):
 
     return await message.reply_photo(
-        photo="https://n.uguu.se/PbzKsnAJ.jpg",
+        photo="https://yukiapi.site/file/pABl4iKv",
 
         caption=(
             "**⚙️ ɴɪɢʜᴛᴍᴏᴅє ꜱєᴛᴛɪɴɢꜱ**\n\n"
@@ -213,7 +213,7 @@ async def start_nightmode():
             await app.send_photo(
                 chat_id,
 
-                photo="https://d.uguu.se/agsYnJwN.jpg",
+                photo="",
 
                 caption=(
                     "**🌌 ɢᴏᴏᴅ ɴɪɢʜᴛ єᴠєʀʏᴏɴє!**\n\n"
@@ -264,7 +264,7 @@ async def close_nightmode():
             await app.send_photo(
                 chat_id,
 
-                photo="https://d.uguu.se/CPlUJSEp.jpg",
+                photo="https://yukiapi.site/file/pABl4iKv",
 
                 caption=(
                     "**🌅 ɢᴏᴏᴅ ᴍᴏʀɴɪɴɢ єᴠєʀʏᴏɴє!**\n\n"
