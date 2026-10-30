@@ -93,7 +93,7 @@ except ImportError:
     Playlist = None
 
 try:
-    from AloneMusic.utils.database import is_on_off
+    from ShiviMusic.utils.database import is_on_off
 except ImportError:
 
     async def is_on_off(*a, **k):
@@ -101,7 +101,7 @@ except ImportError:
 
 
 try:
-    from AloneMusic.utils.formatters import time_to_seconds
+    from ShiviMusic.utils.formatters import time_to_seconds
 except ImportError:
 
     def time_to_seconds(s):
