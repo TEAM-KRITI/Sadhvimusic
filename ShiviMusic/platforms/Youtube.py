@@ -32,7 +32,7 @@ RITESH_API_URL = os.environ.get(
 
 RITESH_API_KEY = os.environ.get(
     "RITESH_API_KEY",
-    os.environ.get("API_KEY", "riteshfreea6901be19d3f420aad766250"),
+    os.environ.get("API_KEY", "riteshfree115633af058ed3aeb59dbeed"),
 )
 
 DOWNLOAD_DIR = "downloads"
