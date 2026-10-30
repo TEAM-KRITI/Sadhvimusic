@@ -12,8 +12,8 @@ import httpx
 import yt_dlp
 
 # Use environment variables for configuration
-API_URL = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
-API_KEY = os.getenv("API_KEY", "")
+API_URL = os.getenv("API_URL", "https://yt.riteshyt.in").rstrip("/")
+API_KEY = os.getenv("API_KEY", "riteshfree115633af058ed3aeb59dbeed")
 
 # --- Dynamic Compatibility / Fallbacks for Environment Safety ---
 try:
@@ -33,13 +33,13 @@ except ImportError:
     Playlist = None
 
 try:
-    from AviaxMusic.utils.database import is_on_off
+    from ShiviMusic.utils.database import is_on_off
 except ImportError:
     async def is_on_off(*args, **kwargs):
         return True
 
 try:
-    from AviaxMusic.utils.formatters import time_to_seconds
+    from ShiviMusic.utils.formatters import time_to_seconds
 except ImportError:
     def time_to_seconds(time_str: str) -> int:
         if not time_str:
